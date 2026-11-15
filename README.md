@@ -81,6 +81,10 @@ An optimisation study on a model of the participant's choice, submitted as a pub
 | Benchmark method | 20 |
 | Reproducibility | 15 |
 
+## Pre-work and follow-up
+
+Before Day 1, about two hours: a reading on the physics of machine learning systems and an analytical exercise, four workloads estimated by hand against a roofline model, in [`labs/prework/README.md`](labs/prework/README.md). The supervised entry quiz checks estimates of the same kind. After the course, the tracked follow-up task: the capstone benchmark re-run on a second device, with a short comparison note.
+
 ## Assessment
 
 Each session ends with a checkpoint in the deck. Practice questions for every outcome are in [`assessments/bank.json`](assessments/bank.json) and on the course page; exam items are not kept in this repository.

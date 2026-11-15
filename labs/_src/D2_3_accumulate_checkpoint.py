@@ -221,7 +221,9 @@ U.save_reference("d2_3_fit", {"budget_mb": BUDGET_MB, "results": results, "grad_
 # <details><summary>Answers</summary>
 #
 # 1. So that the summed gradient is the gradient of the mean loss over the whole batch, as
-#    with one batch of 256; otherwise the step is k times too large.
+#    with one batch of 256; otherwise the gradient is k times too large. With plain SGD the
+#    step is then k times too long; AdamW rescales by the gradient's size and hides most of
+#    the error, so the gradient check of step 3 is what catches it.
 # 2. Nearly: the gradients and the full input batch are also alive, and the allocator keeps
 #    some memory between micro-batches.
 # 3. To the recomputation of each segment's forward pass during the backward pass.

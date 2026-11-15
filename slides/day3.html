@@ -159,14 +159,14 @@
 
 <section class="slide" data-label="Scale" id="kv-scale" data-lo="LO1 LO3">
   <div class="kicker">The same formula at a real model's shape</div>
-  <h2>For a real assistant, the cache, not the weights, often decides what fits</h2>
+  <h2>For a real assistant the cache is no longer small: it grows with every token and every conversation</h2>
   <table class="t">
     <tr><th>Model shape (16-bit numbers)</th><th class="num">Tokens</th><th class="num">Cache per conversation</th></tr>
     <tr><td>16 layers, 8 key-value heads of 64</td><td class="num">4,096</td><td class="num">134 MB</td></tr>
     <tr><td>32 layers, 8 key-value heads of 128</td><td class="num">8,000</td><td class="num">1.05 GB</td></tr>
   </table>
   <p class="small mt">Serving systems page the cache into blocks so that conversations share memory without fragmenting it (PagedAttention).</p>
-  <aside class="notes"><p>Pure arithmetic from the formula; the shapes are illustrative, not any named model. Source for the paging idea: Kwon et al., PagedAttention (arXiv 2309.06180). On an 8 GB laptop, a few long conversations can exhaust memory before the weights do.</p></aside>
+  <aside class="notes"><p>Pure arithmetic from the formula; the shapes are illustrative, not any named model. Source for the paging idea: Kwon et al., PagedAttention (arXiv 2309.06180). The weights are a fixed cost paid once; the cache is paid per conversation and per token, so on a laptop whose memory the weights already nearly fill, the context length and the number of open conversations decide whether the model still fits.</p></aside>
 </section>
 
 <section class="slide" data-label="Classification" id="route-by-classification" data-lo="LO1">
@@ -396,7 +396,7 @@ U.train_steps(pruned, x_tr, y_tr, steps, lr=5e-4)   # a short fine-tune</code></
   <h2>Three things to keep from Day 3</h2>
   <div class="cols cols-3">
     <div class="card c-teal"><h4>Batching is a trade</h4><p class="small mb0">Throughput for latency, and only when requests arrive fast enough.</p></div>
-    <div class="card c-cyan"><h4>Cache arithmetic</h4><p class="small mb0">2 x layers x width x tokens x bytes: the cache can outgrow the weights.</p></div>
+    <div class="card c-cyan"><h4>Cache arithmetic</h4><p class="small mb0">2 x layers x width x tokens x bytes, per conversation, on top of the weights.</p></div>
     <div class="card c-coral"><h4>Compression is lossy</h4><p class="small mb0">Smaller is not faster without the right kernels, and quality moves unevenly.</p></div>
   </div>
   <aside class="notes"><p>Ask which compressed variant each table would ship today, and what evidence is missing. Tomorrow supplies it.</p></aside>

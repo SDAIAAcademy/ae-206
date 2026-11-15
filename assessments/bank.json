@@ -382,7 +382,7 @@
     {
       "id": "q-lo4-accumulate",
       "type": "single",
-      "prompt": "With gradient accumulation over 4 micro-batches, a participant forgets to divide each loss by 4. What happens?",
+      "prompt": "With gradient accumulation over 4 micro-batches and plain SGD, a participant forgets to divide each loss by 4. What happens?",
       "options": [
         "Each update is four times too large, as if the learning rate were four times higher",
         "Nothing: the optimiser normalises",

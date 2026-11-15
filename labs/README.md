@@ -72,6 +72,7 @@ Waraqa is a six-layer convolutional network for 64-pixel leaves. Hasad is a char
 | `bench.py` | The course's timing script: one ONNX model, warm-up, repetitions, fixed inputs, percentiles with bootstrap intervals, the machine, a JSON report | `uv run bench.py data/models/waraqa.onnx --inputs artifacts/mix.npy --out artifacts/b.json` |
 | `prepare_data.py` | The data generator | `uv run python prepare_data.py --export` |
 | `capstone/README_template.md` | The capstone repository's README, section by section | |
+| `prework/README.md` | The pre-work before Day 1 (a reading and four workload estimates by hand, with reference estimates) and the follow-up task after the course | |
 
 ## Helpers: `nama.py`
 

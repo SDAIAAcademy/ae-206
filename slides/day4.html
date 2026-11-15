@@ -44,7 +44,7 @@
     <tr><td>Phones and embedded devices</td><td>ExecuTorch, LiteRT</td><td>small binaries, mobile accelerators</td></tr>
     <tr><td>Small language models on a laptop</td><td>llama.cpp, Ollama</td><td>quantised GGUF files, kernels on quantised blocks, a key-value cache</td></tr>
   </table>
-  <aside class="notes"><p>Names and features change quickly; verify on the official pages before quoting (all four were checked for this course in November 2026). Sources: ONNX Runtime, ExecuTorch, LiteRT, llama.cpp, Ollama official pages.</p></aside>
+  <aside class="notes"><p>Names and features change quickly; verify on the official pages before quoting (all five were checked for this course in November 2026). Sources: ONNX Runtime, ExecuTorch, LiteRT, llama.cpp, Ollama official pages.</p></aside>
 </section>
 
 <section class="slide" data-label="Parity" id="parity-two-halves" data-lo="LO5">
@@ -111,7 +111,7 @@ torch.onnx.export(model, (torch.randn(2, 3, 64, 64),), "waraqa.onnx",
     </div>
     <div class="callout tip why"><b>Why.</b> Identical inputs, identical outputs: the model half is proven, so the difference is in how each side turns a photo into a tensor.</div>
   </div>
-  <aside class="notes"><p>Answer: B. The parity test on one shared tensor isolates the model; the planted fault in Lab 4.1 is on the input side as well as the training-mode export. Ask which preprocessing step each pipeline runs.</p></aside>
+  <aside class="notes"><p>Answer: B. The parity test on one shared tensor isolates the model; the first planted fault in Lab 4.1 is on the input side (the second is the fixed batch axis). Ask which preprocessing step each pipeline runs.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-4-1" data-auto="lab" data-lab="4.1">

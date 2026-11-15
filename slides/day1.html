@@ -100,8 +100,8 @@
     <div class="stat"><div class="big">33.7</div><div class="lbl">GB/s, a 256 MB copy</div></div>
     <div class="stat"><div class="big">4.1</div><div class="lbl">FLOP per byte at the ridge</div></div>
   </div>
-  <p class="small mt">Layer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a roof of 7.8 ms; B 6.9 ms against 4.0 ms.</p>
-  <aside class="notes"><p>Numbers from the course's run of Lab 1.1 in full mode on an Intel Core Ultra 7 265U laptop under Windows, four threads, with other programs running. Yours will differ: that is the point of measuring. The gap between measured and roof is normal; ask what the roof leaves out (call overhead, threads waiting, cache misses).</p></aside>
+  <p class="small mt">Layer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a predicted 7.8 ms; B 6.9 ms against 4.0 ms.</p>
+  <aside class="notes"><p>Numbers from the course's run of Lab 1.1 in full mode on an Intel Core Ultra 7 265U laptop under Windows, four threads, with other programs running. Yours will differ: that is the point of measuring. Layer B is slower than its roof, which is normal; ask what the roof leaves out (call overhead, threads waiting, cache misses). Layer A came out faster than its prediction (160 against 138 GFLOP/s): no layer beats the true peak, so the 138 measured with one matrix product on a busy laptop was an underestimate of the peak. Say so: a measured roof is itself a measurement, and the largest rate you have seen is the better estimate of the peak.</p></aside>
 </section>
 
 <section class="slide" data-label="Caches" id="caches-and-reuse" data-lo="LO1">
@@ -137,13 +137,13 @@
   <h2>An analytical model gives the first estimate; the measurement checks it</h2>
   <div class="cols cols-2">
     <ul class="bullets small">
-      <li>Pre-work: a roofline estimate for four workloads, by hand or with a spreadsheet.</li>
+      <li>Pre-work (<code>labs/prework/</code>): a reading and a roofline estimate for four workloads, by hand or with a spreadsheet.</li>
       <li><b>MLSys·im</b>, from the open Machine Learning Systems textbook, models training and inference analytically.</li>
       <li>An estimate within a factor of two is useful: it says which limit to look at.</li>
     </ul>
     <div class="card c-teal"><h4>LO1 evidence</h4><p class="small mb0">A worked estimate for each of four workloads that matches the reference within a stated margin, done without AI in the supervised check.</p></div>
   </div>
-  <aside class="notes"><p>Collect the pre-work now and pick one participant's estimate to discuss. Sources: Machine Learning Systems textbook and MLSys·im (mlsysbook.ai). The supervised entry quiz and exit check include such estimates by hand, AI-off.</p></aside>
+  <aside class="notes"><p>Collect the pre-work now and pick one participant's estimate to discuss; the four workloads and their reference estimates are in labs/prework/README.md, and an estimate within 20% of the reference counts as matching. Sources: Machine Learning Systems textbook and MLSys·im (mlsysbook.ai). The supervised entry quiz and exit check include such estimates by hand, AI-off.</p></aside>
 </section>
 
 <section class="slide" id="checkpoint-1" data-lo="LO1">
@@ -223,7 +223,7 @@ for _ in range(100):
     <tr class="hl"><td>Two processes computing in a loop</td><td class="num">4.3</td><td class="num">9.0</td><td class="num">17.6</td></tr>
   </table>
   <p class="small mt">A farm-office laptop runs a browser, a sync client and an antivirus scan. Write what else was running next to every number.</p>
-  <aside class="notes"><p>On a laptop with more free cores than busy processes the median may barely move while the tail does. On a two-core Colab runtime both move a lot. Ask: which of these numbers would you put in a budget?</p></aside>
+  <aside class="notes"><p>In the course run the median under load came out lower than the quiet one (4.3 against 5.7 ms): the laptop has more cores than the test kept busy and the quiet run was not perfectly quiet, so read that difference as noise; the tail is what moved, and it doubled at the 99th percentile. On a laptop with more free cores than busy processes the median may barely move while the tail does. On a two-core Colab runtime both move a lot. Ask: which of these numbers would you put in a budget?</p></aside>
 </section>
 
 <section class="slide" data-label="Rule" id="timing-rule" data-lo="LO2 LO6">
@@ -459,7 +459,7 @@ t4 = time.perf_counter()
     <tr class="hl"><td>Cache, 4 workers</td><td class="num">693</td><td class="num">0</td><td class="num">1.5x</td></tr>
   </table>
   <p class="small mt">When loading is near zero the step is compute-bound: what is left is forward, backward and the optimiser.</p>
-  <aside class="notes"><p>Numbers from the course's run on the course laptop (four threads for the model, up to four workers). This table, with the change explained, is LO2's evidence: a before-and-after profile and a measured speed-up.</p></aside>
+  <aside class="notes"><p>Numbers from the course's run on the course laptop (four threads for the model, up to four workers). This table, with the change explained, is LO2's evidence: a before-and-after profile and a measured speed-up. The baseline here (1,059 ms, 343 ms of loading) is not Lab 1.3's (2,142 ms, 1,420 ms): the two labs were run at different moments on a shared laptop, and loading in the main process suffers most from other programs. Compare rows inside one table only; with this lab's baseline the ceiling for a loading fix is 1,059 / (1,059 - 343), about 1.5 times, which is what the cache reached.</p></aside>
 </section>
 
 <section class="slide" id="checkpoint-4" data-lo="LO2">

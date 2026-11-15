@@ -236,7 +236,7 @@ opt.zero_grad()</code></pre>
       <li>Costs time: four smaller calls do less work in parallel.</li>
     </ul>
   </div>
-  <aside class="notes"><p>A common bug: forgetting the division, which makes every step four times too large. Another: calling zero_grad inside the loop.</p></aside>
+  <aside class="notes"><p>A common bug: forgetting the division, which makes the gradient four times too large. With plain SGD every step is then four times too long; AdamW divides by the gradient's running size, so it hides most of the error, which is why the bug survives unnoticed until someone changes the optimiser or adds gradient clipping. Another: calling zero_grad inside the loop.</p></aside>
 </section>
 
 <section class="slide" data-label="Same gradient?" id="same-gradient" data-lo="LO4">
@@ -297,7 +297,7 @@ logits = model.head(feats.mean(dim=(2, 3)))</code></pre>
 </section>
 
 <section class="slide lab" id="lab-2-3" data-auto="lab" data-lab="2.3">
-  <aside class="notes"><p>Usual problems: forgetting to divide the micro-batch loss; comparing gradients in training mode and concluding the code is wrong; checkpointing with use_reentrant=True and an input that does not require grad (the gradients silently vanish). Peak memory is sampled: run each measurement twice.</p></aside>
+  <aside class="notes"><p>Usual problems: forgetting to divide the micro-batch loss (the gradient check of step 3 catches it); comparing gradients in training mode and concluding the code is wrong; checkpointing with use_reentrant=True and an input that does not require grad (the gradients silently vanish). Peak memory is sampled: run each measurement twice.</p></aside>
 </section>
 
 <!-- ======================= SESSION 4 ======================= -->
