@@ -464,14 +464,14 @@ t4 = time.perf_counter()
 
 <section class="slide" id="checkpoint-4" data-lo="LO2">
   <div class="kicker">Checkpoint</div>
-  <h2>Workers made loading vanish. Why is the step only a little faster?</h2>
+  <h2>Loading vanished. Why is the step only a little faster?</h2>
   <div class="quiz" data-type="single" data-lo="LO2">
     <p class="lead">With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?</p>
     <div class="opts">
-      <div class="opt" data-why="Assumes the workers failed; the loading phase did drop, so they work">The workers are not running, so nothing changed</div>
+      <div class="opt" data-why="Assumes the workers failed; the loading phase did drop">The workers are not running</div>
       <div class="opt" data-why="Blames measurement noise for a 25% change seen on every step">It is timer noise; the real speed-up is larger</div>
       <div class="opt" data-why="Thinks decoding got cheaper; workers move the work to other cores, they do not reduce it">Decoding became cheaper, but not by enough</div>
-      <div class="opt" data-ok>The rest of the step (forward, backward, optimiser) was always about 2,100 ms, and the workers also take cores from it</div>
+      <div class="opt" data-ok>The rest of the step was always about 2,100 ms, and the workers take cores from it</div>
     </div>
     <div class="callout tip why"><b>Why.</b> Hiding loading removes at most its share; what remains is compute, now competing with the workers for cores.</div>
   </div>

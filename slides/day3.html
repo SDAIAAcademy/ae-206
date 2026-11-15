@@ -82,7 +82,7 @@
   <div class="kicker">Checkpoint</div>
   <h2>Which batch size for the office?</h2>
   <div class="quiz" data-type="single" data-lo="LO4">
-    <p class="lead">Waraqa serves 4 times more leaves per second at batch 16 than at batch 1. In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?</p>
+    <p class="lead">Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?</p>
     <div class="opts">
       <div class="opt" data-why="Optimises throughput, which the office does not need; the first leaf would wait for fifteen more">16, for the throughput</div>
       <div class="opt" data-why="Splits the difference without measuring the wait; a batch of 4 still waits for three more leaves">4, a compromise</div>
@@ -302,7 +302,7 @@ quantize_static("waraqa_pre.onnx", "waraqa_int8.onnx", Reader(x_cal),
   <div class="kicker">Checkpoint</div>
   <h2>Is the 8-bit file ready to ship?</h2>
   <div class="quiz" data-type="single" data-lo="LO5">
-    <p class="lead">The 8-bit Waraqa is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of the held-out set, lost 3 points. What do you do next?</p>
+    <p class="lead">Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next?</p>
     <div class="opts">
       <div class="opt" data-ok>Put intervals on the overall and per-crop differences, and compare them with the floor per crop</div>
       <div class="opt" data-why="Accepts on the overall number and ignores the group that lost most">Ship it: 0.6 points is within a 1-point floor</div>
