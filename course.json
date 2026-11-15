@@ -1,0 +1,472 @@
+{
+  "$schema": "https://sdaiaacademy.github.io/engine/schemas/course.schema.json",
+  "engine": "1",
+  "id": "ae-206",
+  "code": "AE-206",
+  "version": "2027.1.0",
+  "lang": "en",
+  "title": {
+    "en": "Machine Learning Systems on One Machine",
+    "ar": "أنظمة تعلم الآلة على جهاز واحد"
+  },
+  "tagline": "REPLACE: one line under the title: what participants can do after the course",
+  "description": "Participants find out where time and memory go between raw data and a served prediction, and fix the largest cost first. For a fictional agritech company they profile a data pipeline and a training step, estimate memory from weights, activations, optimiser state and the key-value cache, apply mixed precision, batching, quantisation and pruning, export a model to a portable runtime, and benchmark latency, throughput and quality with repeated runs and intervals. Labs run on a laptop CPU, with an optional free notebook GPU, and every speed-up must be measured and checked for loss of quality.",
+  "track": "ai-engineering",
+  "level": 200,
+  "badge": {
+    "name": "AI Engineering",
+    "level": "Assistant"
+  },
+  "audience": "Practitioners. Graduates and early-career developers who have completed the FN courses or passed the placement test, and software engineers moving into AI work.",
+  "prerequisites": [
+    "AE-202 Deep Learning and Generative AI Fundamentals",
+    "Trains a small neural network with a hand-written training loop",
+    "Reads a histogram and computes a percentile"
+  ],
+  "site": {
+    "url": "https://sdaiaacademy.github.io/ae-206/",
+    "repo": "SDAIAAcademy/ae-206"
+  },
+  "outcomes": [
+    {
+      "id": "LO1",
+      "text": "Explain how compute, memory capacity and memory bandwidth limit training and inference, and identify which one binds for a described workload, given four workload descriptions with model size, batch size and hardware figures",
+      "level": "Awareness",
+      "evidence": "a worked estimate for each workload that matches the reference within a stated margin"
+    },
+    {
+      "id": "LO2",
+      "text": "Measure where time goes in a data pipeline and a training step with profilers and timers, and remove the largest bottleneck, given a slow training script for the leaf-image model",
+      "level": "Applied",
+      "evidence": "a before-and-after profile and a measured speed-up with the change explained"
+    },
+    {
+      "id": "LO3",
+      "text": "Compute the memory needed for weights, activations, optimiser state and the key-value cache and check each estimate against measured peak memory, given a small vision model and a small language model at three batch sizes and context lengths",
+      "level": "Applied",
+      "evidence": "an estimate table next to measured peaks, with each difference explained"
+    },
+    {
+      "id": "LO4",
+      "text": "Apply mixed precision, batching and compilation and report their effect on speed, memory and accuracy, given the training and inference scripts and a fixed test set",
+      "level": "Applied",
+      "evidence": "a results table with time per step, throughput, peak memory and accuracy for each setting"
+    },
+    {
+      "id": "LO5",
+      "text": "Apply post-training quantisation and pruning, export the model to a portable runtime and compare size, latency and quality with the original, given the trained classifier, a small language model and a held-out evaluation set",
+      "level": "Applied",
+      "evidence": "a comparison table of size, median and tail latency and quality loss with an interval"
+    },
+    {
+      "id": "LO6",
+      "text": "Prepare a benchmark that controls warm-up, repetitions, batch size and input mix, and report percentiles with confidence intervals, given two model variants and a target laptop",
+      "level": "Applied",
+      "evidence": "a benchmark script and report that another participant re-runs within 10% of the reported median"
+    },
+    {
+      "id": "LO7",
+      "text": "Optimise a model and its serving path to meet a stated latency and memory budget on a target device while keeping quality within an agreed tolerance, given a budget set by the company for its farm-office laptops and a quality floor on the held-out set",
+      "level": "Performance",
+      "evidence": "an optimisation log ordered by measured impact and a final benchmark that meets the budget or explains the gap"
+    }
+  ],
+  "case_study": {
+    "name": "REPLACE: the name of the fictional organisation every lab works on",
+    "summary": "REPLACE: two sentences on the case study and its synthetic data"
+  },
+  "format": "intensive",
+  "format_note": "Intensive: 4 teaching days of four sessions and a capstone day, with guided pre-work and a tracked follow-up task",
+  "hours": {
+    "instruction": 6,
+    "lab": 7,
+    "guided_self_study": 6,
+    "assessment": 1,
+    "capstone": 6
+  },
+  "unit": "day",
+  "days": [
+    {
+      "id": "day1",
+      "kind": "day",
+      "title": "Measure first",
+      "deck": "slides/day1.html",
+      "sessions": [
+        {
+          "title": "Compute, memory and bandwidth",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO1"
+          ],
+          "lab": {
+            "id": "1.1",
+            "title": "Estimate arithmetic intensity for two layers, predict which is memory-bound, then time both",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D1_1_estimate_arithmetic_intensity.ipynb"
+          }
+        },
+        {
+          "title": "Timers, profilers and noise",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO2",
+            "LO6"
+          ],
+          "lab": {
+            "id": "1.2",
+            "title": "Time one inference 100 times, plot the distribution and show how warm-up and background load change it",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D1_2_time_one_inference.ipynb"
+          }
+        },
+        {
+          "title": "Profiling a training step",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO2"
+          ],
+          "lab": {
+            "id": "1.3",
+            "title": "Profile one training step and rank data loading, forward pass, backward pass and optimiser time",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D1_3_profile_one_training.ipynb"
+          }
+        },
+        {
+          "title": "Fixing an input-bound pipeline",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO2"
+          ],
+          "lab": {
+            "id": "1.4",
+            "title": "Add parallel loading, caching and a faster image format and measure the change in step time",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D1_4_add_parallel_loading.ipynb"
+          }
+        }
+      ]
+    },
+    {
+      "id": "day2",
+      "kind": "day",
+      "title": "Memory and training efficiency",
+      "deck": "slides/day2.html",
+      "sessions": [
+        {
+          "title": "Where memory goes",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO3"
+          ],
+          "lab": {
+            "id": "2.1",
+            "title": "Estimate and measure peak memory for weights, activations and optimiser state at three batch sizes",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D2_1_estimate_measure_peak.ipynb"
+          }
+        },
+        {
+          "title": "Mixed precision",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO4"
+          ],
+          "lab": {
+            "id": "2.2",
+            "title": "Train with and without reduced precision and compare time per step and validation accuracy",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D2_2_train_without_reduced.ipynb"
+          }
+        },
+        {
+          "title": "Accumulation and checkpointing",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO3"
+          ],
+          "lab": {
+            "id": "2.3",
+            "title": "Fit a larger effective batch in fixed memory with gradient accumulation and activation checkpointing",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D2_3_fit_larger_effective.ipynb"
+          }
+        },
+        {
+          "title": "Compilation and fusion",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO4"
+          ],
+          "lab": {
+            "id": "2.4",
+            "title": "Compile the model and measure the first-call cost and the steady-state speed-up",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D2_4_compile_model_measure.ipynb"
+          }
+        }
+      ]
+    },
+    {
+      "id": "day3",
+      "kind": "day",
+      "title": "Inference and compression",
+      "deck": "slides/day3.html",
+      "sessions": [
+        {
+          "title": "Latency, throughput and batching",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO4"
+          ],
+          "lab": {
+            "id": "3.1",
+            "title": "Serve the classifier at batch sizes from 1 to 64 and plot latency against throughput",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D3_1_serve_classifier_batch.ipynb"
+          }
+        },
+        {
+          "title": "Language model inference on a laptop",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO1",
+            "LO3"
+          ],
+          "lab": {
+            "id": "3.2",
+            "title": "Measure time to first token and tokens per second for a small model at three context lengths and size its key-value cache",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D3_2_measure_time_first.ipynb"
+          }
+        },
+        {
+          "title": "Quantisation",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO5"
+          ],
+          "lab": {
+            "id": "3.3",
+            "title": "Quantise the classifier to 8-bit, load supplied 8-bit and 4-bit files of the language model, and measure size, speed and quality loss on a fixed question set",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D3_3_quantise_classifier_8.ipynb"
+          }
+        },
+        {
+          "title": "Pruning or a smaller model",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO5"
+          ],
+          "lab": {
+            "id": "3.4",
+            "title": "Prune the classifier, fine-tune briefly and compare with a smaller architecture trained from scratch",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D3_4_prune_classifier_fine.ipynb"
+          }
+        }
+      ]
+    },
+    {
+      "id": "day4",
+      "kind": "day",
+      "title": "Export and benchmark",
+      "deck": "slides/day4.html",
+      "sessions": [
+        {
+          "title": "Export to a portable runtime",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO5"
+          ],
+          "lab": {
+            "id": "4.1",
+            "title": "Export the classifier to an exchange format, run it in a portable runtime and check that outputs match within tolerance",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D4_1_export_classifier_exchange.ipynb"
+          }
+        },
+        {
+          "title": "A benchmark you can trust",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO6"
+          ],
+          "lab": {
+            "id": "4.2",
+            "title": "Write a benchmark with warm-up, repetitions and a fixed input mix and report percentiles with intervals",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D4_2_write_benchmark_warm.ipynb"
+          }
+        },
+        {
+          "title": "Quality must survive",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO7"
+          ],
+          "lab": {
+            "id": "4.3",
+            "title": "Evaluate each compressed variant on the held-out set with a paired comparison against the original, by crop type",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D4_3_evaluate_each_compressed.ipynb"
+          }
+        },
+        {
+          "title": "Budgets and trade-offs",
+          "outcomes": [
+            "REPLACE: what a participant can do after this session"
+          ],
+          "lo": [
+            "LO7"
+          ],
+          "lab": {
+            "id": "4.4",
+            "title": "From a supplied results table, choose the variant that meets the latency and memory budget, justify it in one paragraph and choose the capstone model",
+            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "minutes": 25,
+            "href": "D4_4_from_supplied_results.ipynb"
+          }
+        }
+      ]
+    },
+    {
+      "id": "capstone",
+      "kind": "capstone",
+      "title": "Capstone project presentations",
+      "deck": "slides/capstone.html"
+    }
+  ],
+  "capstone": {
+    "summary": "An optimisation study on a model of the participant's choice, submitted as a public repository whose README reports the baseline profile, each change ordered by measured impact, and the final latency, memory and quality against a stated budget with intervals and the hardware used, followed by an eight-minute defence and four minutes of questions",
+    "submission": "REPLACE: what participants submit and how: a public repository link, or a shared folder for a course without code",
+    "talk_minutes": 8,
+    "qa_minutes": 4,
+    "rubric": [
+      {
+        "criterion": "Baseline profile",
+        "weight": 20
+      },
+      {
+        "criterion": "Changes ordered by measured impact",
+        "weight": 25
+      },
+      {
+        "criterion": "Quality re-evaluation",
+        "weight": 20
+      },
+      {
+        "criterion": "Benchmark method",
+        "weight": 20
+      },
+      {
+        "criterion": "Reproducibility",
+        "weight": 15
+      }
+    ]
+  },
+  "labs": {
+    "kind": "notebooks",
+    "base": "labs/"
+  },
+  "tools": [
+    {
+      "slot": "Deep learning framework with a profiler",
+      "examples": [
+        "PyTorch and its profiler",
+        "JAX and its profiler"
+      ]
+    },
+    {
+      "slot": "Python profilers and memory tools",
+      "examples": [
+        "py-spy",
+        "Scalene",
+        "memray"
+      ]
+    },
+    {
+      "slot": "Portable inference runtime",
+      "examples": [
+        "ONNX Runtime",
+        "ExecuTorch",
+        "LiteRT"
+      ]
+    },
+    {
+      "slot": "Small language model runtime with quantisation",
+      "examples": [
+        "llama.cpp",
+        "Ollama"
+      ]
+    },
+    {
+      "slot": "Benchmark harness",
+      "examples": [
+        "pytest-benchmark",
+        "hyperfine",
+        "a supplied timing script"
+      ]
+    },
+    {
+      "slot": "Analytical performance model",
+      "examples": [
+        "MLSys·im from the open Machine Learning Systems textbook",
+        "a spreadsheet roofline model"
+      ]
+    },
+    {
+      "slot": "Statistics",
+      "examples": [
+        "SciPy",
+        "NumPy"
+      ]
+    }
+  ]
+}
