@@ -3,24 +3,24 @@
   "version": 1,
   "questions": [
     {
-      "id": "q-example-1",
+      "id": "q-lo1-ridge",
       "type": "single",
-      "prompt": "REPLACE: a practice question on LO1, as a short scenario",
+      "prompt": "A laptop measures 80 GFLOP/s on a large matrix product and 25 GB/s on a large copy. A layer does 0.5 FLOP per byte moved. Which limit binds it?",
       "options": [
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: the right answer",
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: a wrong option that a common misconception makes tempting"
+        "Memory bandwidth, since 0.5 is far below the ridge point of 3.2",
+        "Compute, since 80 GFLOP/s is the smaller-looking number",
+        "Neither: the layer sits exactly on the ridge",
+        "Memory capacity, since the layer moves bytes"
       ],
       "correct": [
-        1
+        0
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "The ridge point is 80 / 25 = 3.2 FLOP per byte; a layer at 0.5 is below it, so it waits for memory.",
       "misconceptions": [
-        "REPLACE: the misconception behind this option",
         "",
-        "REPLACE: the misconception behind this option",
-        "REPLACE: the misconception behind this option"
+        "Compares units that cannot be compared instead of computing the ridge point",
+        "Miscomputes the ridge point",
+        "Confuses how much fits (capacity) with how fast bytes move (bandwidth)"
       ],
       "lo": [
         "LO1"
@@ -32,163 +32,784 @@
       "weight": 1
     },
     {
-      "id": "q-example-2",
-      "type": "tf",
-      "prompt": "REPLACE: a statement on LO2 that is true",
+      "id": "q-lo1-batch1",
+      "type": "single",
+      "prompt": "A language model decodes one token at a time for one user. Each step reads all 2 GB of weights and does about 4 GFLOP. On a machine with 50 GB/s and 500 GFLOP/s, what is the lower bound on time per token?",
       "options": [
-        "True",
-        "False"
+        "About 8 ms, set by compute",
+        "About 40 ms, set by reading the weights",
+        "About 4 ms, the average of the two",
+        "About 0.4 ms, set by the cache"
+      ],
+      "correct": [
+        1
+      ],
+      "explanation": "Reading 2 GB at 50 GB/s takes 40 ms; computing 4 GFLOP at 500 GFLOP/s takes 8 ms. The larger bound wins.",
+      "misconceptions": [
+        "Takes the compute bound when the memory bound is larger",
+        "",
+        "Averages two bounds instead of taking the larger",
+        "Ignores the weights, which every step must read"
+      ],
+      "lo": [
+        "LO1"
+      ],
+      "day": "day3",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo1-batching-intensity",
+      "type": "single",
+      "prompt": "Why does serving 16 leaves in one batch raise a fully connected layer's arithmetic intensity compared with one leaf?",
+      "options": [
+        "The layer does fewer FLOPs per leaf in a batch",
+        "Batching compresses the activations",
+        "The weights are read once and used for 16 rows instead of one",
+        "The processor runs at a higher clock speed for batches"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "FLOPs grow with the batch while the weight bytes are read once, so FLOPs per byte rise.",
+      "misconceptions": [
+        "Thinks batching removes arithmetic; it shares weight reads",
+        "Invents a compression step that batching does not do",
+        "",
+        "Attributes the gain to clock speed instead of data reuse"
+      ],
+      "lo": [
+        "LO1"
+      ],
+      "day": "day3",
+      "session": 1,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo1-capacity",
+      "type": "single",
+      "prompt": "A team plans to train a 3 B parameter model in float32 with AdamW on a GPU with 40 GB. Before counting activations, does it fit?",
+      "options": [
+        "Yes: 3 B parameters are 12 GB",
+        "Yes, with room for a large batch",
+        "It depends only on the batch size",
+        "No: weights, gradients and AdamW state need about 48 GB"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "16 bytes per parameter for float32 weights, gradients and two AdamW moments: 3 B x 16 = 48 GB.",
+      "misconceptions": [
+        "Counts the weights only",
+        "Ignores gradients and optimiser state",
+        "Forgets the fixed part that does not depend on the batch",
+        ""
+      ],
+      "lo": [
+        "LO1"
+      ],
+      "day": "day2",
+      "session": 1,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo2-largest-phase",
+      "type": "single",
+      "prompt": "Phase timers on a training step: loading 300 ms, forward 120 ms, backward 240 ms, optimiser 20 ms. What is the largest speed-up possible by making the backward pass free?",
+      "options": [
+        "About 1.5 times",
+        "About 3 times",
+        "About 2 times",
+        "It cannot be known without a profiler"
       ],
       "correct": [
         0
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "The step is 680 ms; without backward it is 440 ms, so at most 680 / 440, about 1.5 times.",
       "misconceptions": [
         "",
-        "REPLACE: the misconception behind this option"
+        "Divides by the backward share instead of what remains",
+        "Assumes backward is half the step",
+        "Thinks Amdahl's ceiling needs operator detail; phase times suffice"
       ],
       "lo": [
         "LO2"
       ],
       "day": "day1",
-      "session": 1,
-      "level": "understand",
+      "session": 3,
+      "level": "apply",
       "pool": "practice",
       "weight": 1
     },
     {
-      "id": "q-example-3",
+      "id": "q-lo2-workers",
       "type": "single",
-      "prompt": "REPLACE: a practice question on LO3, as a short scenario",
+      "prompt": "Adding four DataLoader workers made the loading phase almost vanish but the step only 20% faster. What should you do next?",
       "options": [
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: the right answer",
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: a wrong option that a common misconception makes tempting"
+        "Add more workers",
+        "Profile forward and backward: the step is now compute-bound",
+        "Switch to a faster disk",
+        "Remove the workers, since the gain is small"
       ],
       "correct": [
         1
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "Once loading hides behind compute, the remaining phases set the step time; they are the next target.",
       "misconceptions": [
-        "REPLACE: the misconception behind this option",
+        "Keeps fixing a phase that is no longer the bottleneck",
         "",
-        "REPLACE: the misconception behind this option",
-        "REPLACE: the misconception behind this option"
+        "Fixes storage when loading is already hidden",
+        "Throws away a measured gain"
+      ],
+      "lo": [
+        "LO2"
+      ],
+      "day": "day1",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo2-profiler-opaque",
+      "type": "single",
+      "prompt": "In a framework profiler table, the data loader appears as one row with no detail inside. Which tool shows where its time goes?",
+      "options": [
+        "The same profiler, sorted by total time",
+        "A roofline estimate",
+        "A sampling Python profiler such as py-spy, or Scalene",
+        "A memory profiler"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "The loader is Python and image-library code; a Python-level profiler samples those call stacks.",
+      "misconceptions": [
+        "Re-sorting cannot reveal detail that was never recorded",
+        "An estimate does not observe a running program",
+        "",
+        "Memory tools answer a different question"
+      ],
+      "lo": [
+        "LO2"
+      ],
+      "day": "day1",
+      "session": 3,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo2-cache-tradeoff",
+      "type": "single",
+      "prompt": "Caching decoded 64-pixel images made training three times faster. What must be checked before adopting it?",
+      "options": [
+        "Nothing: a faster step is always better",
+        "That the cache file is compressed",
+        "That the GPU is busy",
+        "That the augmentation and image quality did not change what the model learns"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "The cache changed the augmentation (90-degree rotations); a change that alters inputs must be re-evaluated for accuracy.",
+      "misconceptions": [
+        "Ignores that speed-ups can change training",
+        "Optimises disk space, which was not the question",
+        "Checks a resource the laptop does not use",
+        ""
+      ],
+      "lo": [
+        "LO2"
+      ],
+      "day": "day1",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo3-kv",
+      "type": "single",
+      "prompt": "A model has 24 layers, 8 key-value heads of 128 numbers, and stores its cache in 16 bits. How large is the key-value cache for 2,048 tokens?",
+      "options": [
+        "About 50 MB",
+        "About 200 MB",
+        "About 400 MB",
+        "About 800 MB"
+      ],
+      "correct": [
+        1
+      ],
+      "explanation": "2 x 24 x (8 x 128) x 2,048 x 2 bytes is about 201 MB.",
+      "misconceptions": [
+        "Forgets the factor 2 for keys and values and the 2 bytes",
+        "",
+        "Counts 4 bytes per number for a 16-bit cache",
+        "Counts query heads too"
       ],
       "lo": [
         "LO3"
       ],
-      "day": "day1",
+      "day": "day3",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo3-activations-scale",
+      "type": "single",
+      "prompt": "A training step peaks at 900 MB at batch 128; weights, gradients and optimiser state are 20 MB. What peak do you predict at batch 32?",
+      "options": [
+        "About 240 MB",
+        "About 900 MB",
+        "About 450 MB",
+        "About 30 MB"
+      ],
+      "correct": [
+        0
+      ],
+      "explanation": "Activations (about 880 MB) scale with the batch: 880 / 4 + 20 is about 240 MB.",
+      "misconceptions": [
+        "",
+        "Thinks memory does not depend on the batch",
+        "Halves instead of quartering",
+        "Forgets the activations scale, not vanish"
+      ],
+      "lo": [
+        "LO3"
+      ],
+      "day": "day2",
       "session": 1,
       "level": "apply",
       "pool": "practice",
       "weight": 1
     },
     {
-      "id": "q-example-4",
-      "type": "tf",
-      "prompt": "REPLACE: a statement on LO4 that is true",
-      "options": [
-        "True",
-        "False"
-      ],
-      "correct": [
-        0
-      ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
-      "misconceptions": [
-        "",
-        "REPLACE: the misconception behind this option"
-      ],
-      "lo": [
-        "LO4"
-      ],
-      "day": "day1",
-      "session": 1,
-      "level": "understand",
-      "pool": "practice",
-      "weight": 1
-    },
-    {
-      "id": "q-example-5",
+      "id": "q-lo3-gap",
       "type": "single",
-      "prompt": "REPLACE: a practice question on LO5, as a short scenario",
+      "prompt": "Your estimate of saved activations is 20% below what autograd hooks count. Which omission is the likeliest?",
       "options": [
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: the right answer",
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: a wrong option that a common misconception makes tempting"
+        "The weights",
+        "Max pooling's indices, stored as 8-byte integers, and the input batch",
+        "The optimiser state",
+        "The loss value"
       ],
       "correct": [
         1
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "Pooling keeps the positions of its maxima for the backward pass, as 64-bit integers, and the input is saved by the first layer.",
       "misconceptions": [
-        "REPLACE: the misconception behind this option",
+        "Weights are not activations",
         "",
-        "REPLACE: the misconception behind this option",
-        "REPLACE: the misconception behind this option"
+        "Optimiser state is not saved by autograd",
+        "A single number cannot explain 20%"
       ],
       "lo": [
-        "LO5"
+        "LO3"
       ],
-      "day": "day1",
+      "day": "day2",
       "session": 1,
       "level": "apply",
       "pool": "practice",
       "weight": 1
     },
     {
-      "id": "q-example-6",
-      "type": "tf",
-      "prompt": "REPLACE: a statement on LO6 that is true",
+      "id": "q-lo3-checkpointing",
+      "type": "single",
+      "prompt": "Which part of training memory does activation checkpointing reduce?",
       "options": [
-        "True",
-        "False"
+        "Weights",
+        "Gradients",
+        "Activations kept for the backward pass",
+        "Optimiser state"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "It keeps only some activations and recomputes the rest; parameters, gradients and optimiser state are untouched.",
+      "misconceptions": [
+        "Thinks checkpointing compresses weights",
+        "Thinks it drops gradients",
+        "",
+        "Thinks it touches the optimiser"
+      ],
+      "lo": [
+        "LO3"
+      ],
+      "day": "day2",
+      "session": 3,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo4-bf16",
+      "type": "single",
+      "prompt": "On a processor without native bfloat16 arithmetic, bfloat16 autocast made training slower at equal accuracy. What is the right report?",
+      "options": [
+        "Mixed precision does not work",
+        "The model is too small",
+        "Accuracy must have dropped",
+        "On this processor bfloat16 is emulated, so it costs time; on hardware with native support it can be faster"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "The speed-up depends on hardware support; the report names the hardware and what was measured.",
+      "misconceptions": [
+        "Generalises one machine's result to all hardware",
+        "Blames model size without evidence",
+        "Contradicts the measured accuracy",
+        ""
+      ],
+      "lo": [
+        "LO4"
+      ],
+      "day": "day2",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo4-accumulate",
+      "type": "single",
+      "prompt": "With gradient accumulation over 4 micro-batches, a participant forgets to divide each loss by 4. What happens?",
+      "options": [
+        "Each update is four times too large, as if the learning rate were four times higher",
+        "Nothing: the optimiser normalises",
+        "The gradients cancel out",
+        "Memory use quadruples"
       ],
       "correct": [
         0
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "Summed gradients of four un-scaled losses are four times the gradient of the mean loss.",
       "misconceptions": [
         "",
-        "REPLACE: the misconception behind this option"
+        "Thinks the optimiser rescales gradients by the batch",
+        "Confuses summing with cancelling",
+        "Memory depends on the micro-batch, not on the loss scale"
+      ],
+      "lo": [
+        "LO4"
+      ],
+      "day": "day2",
+      "session": 3,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo4-compile",
+      "type": "single",
+      "prompt": "Compiling a model costs 15 s on the first call and saves 1.5 ms per call. After how many calls in one process is the cost repaid?",
+      "options": [
+        "About 100",
+        "About 1,000",
+        "About 10,000",
+        "Never"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "15,000 ms divided by 1.5 ms per call is 10,000 calls.",
+      "misconceptions": [
+        "Off by two orders of magnitude",
+        "Off by one order of magnitude",
+        "",
+        "Ignores that a steady gain repays a fixed cost eventually"
+      ],
+      "lo": [
+        "LO4"
+      ],
+      "day": "day2",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo4-fold",
+      "type": "single",
+      "prompt": "Why can batch norm be folded into the preceding convolution at inference but not during training?",
+      "options": [
+        "Folding only works on GPUs",
+        "At inference it uses fixed stored statistics, so it is a constant affine map",
+        "Training needs the extra memory",
+        "Batch norm has no weights at inference"
+      ],
+      "correct": [
+        1
+      ],
+      "explanation": "In training batch norm uses each batch's statistics, which change every step.",
+      "misconceptions": [
+        "Folding is arithmetic and works on any device",
+        "",
+        "Memory is not the reason",
+        "Batch norm keeps its scale and shift at inference"
+      ],
+      "lo": [
+        "LO4"
+      ],
+      "day": "day2",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo5-structured",
+      "type": "single",
+      "prompt": "Which change makes a convolutional network faster on a standard dense runtime?",
+      "options": [
+        "Zeroing half of the weights by magnitude",
+        "Storing weights as float64",
+        "Removing half of the filters of each convolution",
+        "Adding dropout"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "Removing filters shrinks every matrix; zeros in a dense matrix are still multiplied.",
+      "misconceptions": [
+        "Assumes dense kernels skip zeros",
+        "More bytes per number only slows the model",
+        "",
+        "Dropout is inactive at inference"
+      ],
+      "lo": [
+        "LO5"
+      ],
+      "day": "day3",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo5-calibration",
+      "type": "single",
+      "prompt": "A static 8-bit model loses 6 points on date palm and almost nothing on tomato. The calibration set was 256 tomato leaves. What is the likeliest cause?",
+      "options": [
+        "8 bits are too few for any classifier",
+        "The model was exported in training mode",
+        "Date palm leaves are larger",
+        "Activation ranges learnt from tomato leaves do not fit date-palm leaves"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "Calibration sets the integer ranges; an unrepresentative set clips or wastes range for other groups.",
+      "misconceptions": [
+        "Generalises from one group's loss to all classifiers",
+        "Would affect all crops, not one",
+        "Leaf size is not what quantisation depends on",
+        ""
+      ],
+      "lo": [
+        "LO5"
+      ],
+      "day": "day3",
+      "session": 3,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo5-parity",
+      "type": "single",
+      "prompt": "After export, the runtime's logits differ from PyTorch's by up to 3e-6 on 500 leaves, with the same class everywhere. The tolerance stated in advance is 1e-4. What do you conclude?",
+      "options": [
+        "Parity holds: the differences are rounding from fused and reordered operations",
+        "The export is wrong: outputs must be identical",
+        "The runtime uses a different model",
+        "Run it on one more leaf to be sure"
+      ],
+      "correct": [
+        0
+      ],
+      "explanation": "Floating-point results agree to rounding, not bit for bit; the stated tolerance is met on many inputs.",
+      "misconceptions": [
+        "",
+        "Expects bit-exact results from a runtime that reorders operations",
+        "Different models would disagree far more",
+        "One more leaf adds nothing to 500"
+      ],
+      "lo": [
+        "LO5"
+      ],
+      "day": "day4",
+      "session": 1,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo5-paired",
+      "type": "single",
+      "prompt": "Two models are compared on the same 2,000 leaves. Why use a paired comparison rather than two separate accuracy intervals?",
+      "options": [
+        "It needs fewer leaves to label",
+        "Each leaf's difficulty cancels out, so the difference is measured more precisely",
+        "It always shows the new model is better",
+        "It ignores the leaves both models get right"
+      ],
+      "correct": [
+        1
+      ],
+      "explanation": "Pairing compares the models leaf by leaf; only disagreements carry information about the difference.",
+      "misconceptions": [
+        "Labelling is the same either way",
+        "",
+        "A test does not favour either model",
+        "Ignoring agreements is a consequence, not the reason"
+      ],
+      "lo": [
+        "LO5"
+      ],
+      "day": "day4",
+      "session": 3,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo6-percentile",
+      "type": "single",
+      "prompt": "100 timed calls: mean 7 ms, median 5 ms, 95th percentile 14 ms. Which pair describes the latency a user feels?",
+      "options": [
+        "Mean and standard deviation",
+        "Minimum and maximum",
+        "Median and 95th percentile",
+        "Mean and median"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "Latency distributions are skewed with a long tail; the median and a tail percentile describe them.",
+      "misconceptions": [
+        "Assumes a bell curve that latency does not follow",
+        "Extremes are dominated by single events",
+        "",
+        "Both describe the centre only"
       ],
       "lo": [
         "LO6"
       ],
       "day": "day1",
-      "session": 1,
-      "level": "understand",
+      "session": 2,
+      "level": "apply",
       "pool": "practice",
       "weight": 1
     },
     {
-      "id": "q-example-7",
+      "id": "q-lo6-warmup",
       "type": "single",
-      "prompt": "REPLACE: a practice question on LO7, as a short scenario",
+      "prompt": "A benchmark's first call takes 120 ms and the next 99 average 5 ms. How should the report treat the first call?",
       "options": [
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: the right answer",
-        "REPLACE: a wrong option that a common misconception makes tempting",
-        "REPLACE: a wrong option that a common misconception makes tempting"
+        "Average it with the others",
+        "Drop it and never mention it",
+        "Repeat until the first call is fast",
+        "Report it separately as the cold start, and exclude it from the steady-state percentiles"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "The first call is a different event, paid once; mixing it in hides both numbers.",
+      "misconceptions": [
+        "Mixes a one-time event into a per-call statistic",
+        "Hides a cost the user pays",
+        "Cannot change what a cold start is",
+        ""
+      ],
+      "lo": [
+        "LO6"
+      ],
+      "day": "day1",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo6-rerun",
+      "type": "single",
+      "prompt": "Your neighbour re-runs your benchmark and gets a median 30% higher. Which is the most useful first check?",
+      "options": [
+        "Whether their laptop was on battery or under load, and the thread count",
+        "Whether your code has a bug",
+        "Whether 30% is within the bootstrap interval",
+        "Whether they used a newer Python"
+      ],
+      "correct": [
+        0
+      ],
+      "explanation": "Conditions (power mode, load, threads) are the commonest cause of large re-run gaps; the report should record them.",
+      "misconceptions": [
+        "",
+        "Assumes a code error before checking conditions",
+        "A within-run interval does not cover a different machine's conditions",
+        "A possible factor, but less likely than power and load"
+      ],
+      "lo": [
+        "LO6"
+      ],
+      "day": "day4",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo6-mix",
+      "type": "single",
+      "prompt": "Why does the course's benchmark cycle through a saved file of 40 leaves in fixed crop shares?",
+      "options": [
+        "To make the benchmark slower",
+        "So a re-run sees the same inputs, and the inputs resemble the field",
+        "Because ONNX Runtime needs exactly 40 inputs",
+        "To test accuracy at the same time"
       ],
       "correct": [
         1
       ],
-      "explanation": "REPLACE: why the right answer is right, in one sentence",
+      "explanation": "A fixed, representative input mix makes the benchmark repeatable and relevant.",
       "misconceptions": [
-        "REPLACE: the misconception behind this option",
+        "Speed of the benchmark is not the goal",
         "",
-        "REPLACE: the misconception behind this option",
-        "REPLACE: the misconception behind this option"
+        "The runtime takes any number of inputs",
+        "Accuracy is measured separately, on the held-out set"
+      ],
+      "lo": [
+        "LO6"
+      ],
+      "day": "day4",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo7-budget",
+      "type": "single",
+      "prompt": "Budget: p95 at most 15 ms, file at most 1 MB, quality within 1 point. Variant A: 9 ms, 0.3 MB, -2.5 points. Variant B: 13 ms, 0.4 MB, -0.4 points. Variant C: 8 ms, 1.2 MB, -0.1 points. Which meets the budget?",
+      "options": [
+        "A",
+        "B",
+        "C",
+        "None"
+      ],
+      "correct": [
+        1
+      ],
+      "explanation": "Only B meets all three lines: A fails quality, C fails size.",
+      "misconceptions": [
+        "Picks the fastest and ignores quality",
+        "",
+        "Ignores the size limit",
+        "Misreads B's numbers"
       ],
       "lo": [
         "LO7"
       ],
-      "day": "day1",
-      "session": 1,
+      "day": "day4",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo7-order",
+      "type": "single",
+      "prompt": "An optimisation log lists: quantisation (-30% p95), batch norm folding (-3%), thread pinning (no effect), input resizing (-55%). How should it be ordered in the report?",
+      "options": [
+        "In the order the changes were tried",
+        "Alphabetically",
+        "Input resizing, quantisation, folding, thread pinning",
+        "Without thread pinning, since it did nothing"
+      ],
+      "correct": [
+        2
+      ],
+      "explanation": "Changes are ordered by measured impact, largest first; null results stay in the log.",
+      "misconceptions": [
+        "Order of trial hides what mattered",
+        "Alphabetical order carries no information",
+        "",
+        "Dropping null results loses evidence"
+      ],
+      "lo": [
+        "LO7"
+      ],
+      "day": "day4",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo7-energy",
+      "type": "single",
+      "prompt": "A participant reports '0.04 Wh per 1,000 predictions' with no further detail. What is missing?",
+      "options": [
+        "Nothing: it is a measurement",
+        "The model's accuracy",
+        "The number of parameters",
+        "The assumed power draw and the timing it was computed from"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "Without a power meter energy is an estimate from time and assumed watts; both must be stated.",
+      "misconceptions": [
+        "Mistakes an estimate for a measurement",
+        "Relevant elsewhere, not to the energy figure",
+        "Parameters do not determine energy directly",
+        ""
+      ],
+      "lo": [
+        "LO7"
+      ],
+      "day": "day4",
+      "session": 4,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
+      "id": "q-lo7-margin",
+      "type": "single",
+      "prompt": "A variant meets the 15 ms p95 budget at 14.8 ms on the course laptop. What belongs in the recommendation?",
+      "options": [
+        "The margin, and a re-run on a target farm-office laptop before shipping",
+        "Ship it: it meets the budget",
+        "Reject it: the margin is too small",
+        "Lower the budget to 14 ms"
+      ],
+      "correct": [
+        0
+      ],
+      "explanation": "A 0.2 ms margin is within the noise of another machine; the target device has the last word.",
+      "misconceptions": [
+        "",
+        "Treats a small margin on another machine as settled",
+        "Rejects a variant that meets every line",
+        "Moves the goalposts instead of measuring"
+      ],
+      "lo": [
+        "LO7"
+      ],
+      "day": "day4",
+      "session": 4,
       "level": "apply",
       "pool": "practice",
       "weight": 1
