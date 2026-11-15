@@ -1,158 +1,397 @@
+<!-- ======================= OPENING ======================= -->
 <section class="slide title" id="title" data-auto="title">
-  <aside class="notes">REPLACE: welcome; introduce yourself; one question to the room that calibrates the pace; the rhythm of the day</aside>
+  <aside class="notes"><p>Today turns three days of measurements into a decision Ghadeer can sign: one file, one benchmark another person can re-run, one quality check by crop, one paragraph. Then each participant chooses the capstone model.</p></aside>
 </section>
 
 <section class="slide" id="agenda" data-auto="agenda"></section>
 
-<!-- Session 1 -->
-
-<section class="slide section" id="s1" data-auto="section" data-session="1"></section>
-
-<section class="slide" id="s1-idea" data-lo="LO5">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+<section class="slide" id="review-day-3" data-lo="LO5">
+  <div class="kicker">Review of Day 3</div>
+  <h2>Why was the 4-bit file not faster?</h2>
+  <div class="quiz" data-type="single" data-lo="LO5">
+    <p class="lead">Hasad's 4-bit file is about a sixth of the 32-bit file's size. Loaded with "expand once", it decodes no faster than the 32-bit model once the machine is quiet. Why?</p>
+    <div class="opts">
+      <div class="opt" data-why="Thinks the file did not shrink; the size was measured">The 4-bit file holds the same bytes as the 32-bit one</div>
+      <div class="opt" data-ok>At load the weights became float32 again, so each decode step reads as many bytes as before</div>
+      <div class="opt" data-why="Blames the cache, which is the same size in both runs">The key-value cache got larger in 4 bits</div>
+      <div class="opt" data-why="Thinks the tokenizer depends on the precision; it does not change">The tokenizer is slower for quantised models</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Decoding at batch 1 is memory-bound; speed comes from reading fewer bytes per token, which needs kernels that compute on the 4-bit blocks.</div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <aside class="notes"><p>Answer: B. Ask who loaded Hasad with "expand once" in Lab 3.3 and compare the file size with the decode speed in their table. A 4-bit file pays off only where the runtime computes on the blocks, as llama.cpp does with its quantised types.</p></aside>
 </section>
 
-<section class="slide" id="s1-steps" data-lo="LO5">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<!-- ======================= SESSION 1 ======================= -->
+<section class="slide section" id="s1" data-auto="section" data-session="1"></section>
+
+<section class="slide" data-label="Why export" id="why-export" data-lo="LO5">
+  <div class="kicker">Exchange formats</div>
+  <h2>An exported file carries the graph and the weights, without the training stack</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal flat"><h4>Smaller install</h4><p class="small mb0">A runtime instead of a training framework on every farm laptop.</p></div>
+    <div class="card c-cyan flat"><h4>Optimised once</h4><p class="small mb0">Fusions and constant folding happen when the session opens, not at every start-up compile.</p></div>
+    <div class="card c-coral flat"><h4>One file, many devices</h4><p class="small mb0">The same file on Windows, Linux and phones, with the runtime for each.</p></div>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>ONNX is the exchange format the labs use. The slot "portable inference runtime" has interchangeable examples: ONNX Runtime, ExecuTorch (PyTorch's on-device runtime), LiteRT (Google AI Edge). Name the capability first.</p></aside>
+</section>
+
+<section class="slide" data-label="Runtimes" id="runtimes-map" data-lo="LO5">
+  <div class="kicker">Runtimes by target</div>
+  <h2>Choose the runtime by the device and the model family</h2>
+  <table class="t small">
+    <tr><th>Target</th><th>Examples</th><th>What they add</th></tr>
+    <tr><td>Processors in laptops and servers</td><td>ONNX Runtime</td><td>graph optimisation, 8-bit kernels, many execution providers</td></tr>
+    <tr><td>Phones and embedded devices</td><td>ExecuTorch, LiteRT</td><td>small binaries, mobile accelerators</td></tr>
+    <tr><td>Small language models on a laptop</td><td>llama.cpp, Ollama</td><td>quantised GGUF files, kernels on quantised blocks, a key-value cache</td></tr>
+  </table>
+  <aside class="notes"><p>Names and features change quickly; verify on the official pages before quoting (all four were checked for this course in November 2026). Sources: ONNX Runtime, ExecuTorch, LiteRT, llama.cpp, Ollama official pages.</p></aside>
+</section>
+
+<section class="slide" data-label="Parity" id="parity-two-halves" data-lo="LO5">
+  <div class="kicker">Lab 4.1: Lina's export "gives different answers"</div>
+  <h2>Parity has two halves: the model in the file and the preprocessing around it</h2>
+  <div class="cols cols-2">
+    <div class="trace s">
+      <div class="ev error"><b>symptom</b><span>same class on 6 of 64 leaves</span></div>
+      <div class="ev model"><b>test 1</b><span>give the runtime PyTorch's own input tensor: difference 4.8e-06</span></div>
+      <div class="ev result"><b>cause</b><span>her runtime divides by 255 and never subtracts the mean 0.5 or divides by 0.25</span></div>
+    </div>
+    <div class="callout tip"><b>The robust fix.</b> Export the preprocessing inside the file, so the runtime takes raw pixels and nobody can forget a step.</div>
+  </div>
+  <aside class="notes"><p>From the course's run of Lab 4.1. Do not reveal the cause before participants test the two halves themselves. Other parity breakers in the field: colour order (RGB against BGR), the resizing filter, JPEG compression.</p></aside>
+</section>
+
+<section class="slide" data-label="Export" id="export-dynamic" data-lo="LO5">
+  <div class="kicker">The second fault: a fixed batch</div>
+  <h2>Export in evaluation mode, with a dynamic batch axis</h2>
+  <pre class="code s" data-file="Lab 4.1"><code class="language-python">model.eval()
+torch.onnx.export(model, (torch.randn(2, 3, 64, 64),), "waraqa.onnx",
+                  input_names=["image"], output_names=["logits"],
+                  opset_version=18, dynamo=False,
+                  dynamic_axes={"image": {0: "batch"}, "logits": {0: "batch"}})</code></pre>
+  <p class="small mt">Lina's file was traced with one leaf: batch 8 fails at run time. The night archive needs batches (Day 3).</p>
+  <aside class="notes"><p>The labs use the TorchScript-based exporter (dynamo=False) because it is stable for this model on every platform the course was tried on; PyTorch also offers the newer exporter (dynamo=True), which needs the onnxscript package. Source: PyTorch 2.15 torch.onnx documentation.</p></aside>
+</section>
+
+<section class="slide" data-label="Tolerance" id="parity-tolerance" data-lo="LO5">
+  <div class="kicker">Measured in Lab 4.1 on 500 held-out leaves</div>
+  <h2>State the tolerance, then prove it on many inputs</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">4.8e-06</div><div class="lbl">largest absolute logit difference</div></div>
+    <div class="stat"><div class="big">1e-4</div><div class="lbl">the tolerance stated before the test</div></div>
+    <div class="stat"><div class="big">100%</div><div class="lbl">leaves with the same class</div></div>
+  </div>
+  <aside class="notes"><p>Exact equality is the wrong test: the runtime fuses and reorders floating-point operations. A tolerance stated in advance, on hundreds of leaves, with the class agreement, is the right one.</p></aside>
+</section>
+
+<section class="slide" data-label="Graph levels" id="graph-levels" data-lo="LO5">
+  <div class="kicker">Measured in Lab 4.1: batch 1, four threads</div>
+  <h2>The runtime's graph optimisations do Day 2's fusion for you</h2>
+  <table class="t">
+    <tr><th>Setting</th><th class="num">Median ms</th><th class="num">p95 ms</th></tr>
+    <tr><td>No graph optimisation</td><td class="num">10.5</td><td class="num">22.2</td></tr>
+    <tr><td>Basic</td><td class="num">9.5</td><td class="num">17.7</td></tr>
+    <tr><td>Extended</td><td class="num">8.2</td><td class="num">17.8</td></tr>
+    <tr class="hl"><td>All</td><td class="num">4.5</td><td class="num">8.7</td></tr>
+    <tr><td>PyTorch eager, for comparison</td><td class="num">12.3</td><td class="num">30.0</td></tr>
+  </table>
+  <aside class="notes"><p>Levels: none, basic (constant folding, redundant nodes), extended and all (fusions such as convolution with batch norm and activation, layout changes). Source: ONNX Runtime graph optimisations documentation. Numbers from the course's run.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-1" data-lo="LO5">
+  <div class="kicker">Checkpoint</div>
+  <h2>Where do you look first?</h2>
+  <div class="quiz" data-type="single" data-lo="LO5">
+    <p class="lead">The exported Waraqa gives different classes from PyTorch on field photos. Feeding both the identical input tensor, their logits agree within 1e-6. Where is the fault?</p>
+    <div class="opts">
+      <div class="opt" data-why="Ignores the test just run: identical inputs gave identical outputs, so the file is right">In the exported file: re-export with another opset</div>
+      <div class="opt" data-ok>In the preprocessing: the two pipelines build different tensors from the same photo</div>
+      <div class="opt" data-why="Blames rounding, which the 1e-6 agreement rules out as the cause of different classes">In floating-point rounding inside the runtime</div>
+      <div class="opt" data-why="Confuses a runtime fault with a training problem; the PyTorch model is the reference here">In the model's training, which must be redone</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Identical inputs, identical outputs: the model half is proven, so the difference is in how each side turns a photo into a tensor.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. The parity test on one shared tensor isolates the model; the planted fault in Lab 4.1 is on the input side as well as the training-mode export. Ask which preprocessing step each pipeline runs.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-4-1" data-auto="lab" data-lab="4.1">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>Usual problems: exporting a model still in training mode (batch norm and dropout behave differently); comparing a batch-1 file with batch-8 inputs; checking parity on one leaf. If a participant's export fails, data/models/waraqa.onnx is the supplied fallback.</p></aside>
 </section>
 
-<!-- Session 2 -->
-
+<!-- ======================= SESSION 2 ======================= -->
 <section class="slide section" id="s2" data-auto="section" data-session="2"></section>
 
-<section class="slide" id="s2-idea" data-lo="LO6">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
+<section class="slide" data-label="Design" id="benchmark-design" data-lo="LO6">
+  <div class="kicker">Benchmark design</div>
+  <h2>Control what you can, record what you cannot</h2>
   <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+    <div class="card c-teal"><h4>Controlled</h4><p class="small mb0">Warm-up calls, number of repetitions, a fixed input mix in a file, batch size, threads, the model file.</p></div>
+    <div class="card c-coral"><h4>Recorded</h4><p class="small mb0">Processor, memory, operating system, runtime version, power mode, the load at start.</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <div class="callout tip mt"><b>The test of a benchmark.</b> Another person runs it on the same kind of machine and gets a median within 10%.</div>
+  <aside class="notes"><p>That is LO6's evidence, word for word: a benchmark script and report that another participant re-runs within 10% of the reported median.</p></aside>
 </section>
 
-<section class="slide" id="s2-steps" data-lo="LO6">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Input mix" id="input-mix" data-lo="LO6">
+  <div class="kicker">A fixed input mix</div>
+  <h2>Time 40 leaves in the field's crop shares, saved to a file</h2>
+  <div class="cols cols-2">
+    <div class="bars">
+      <div class="row"><span>Tomato</span><div class="bar c-coral" style="--w:100%"></div><span class="val">14</span></div>
+      <div class="row"><span>Cucumber</span><div class="bar c-teal" style="--w:86%"></div><span class="val">12</span></div>
+      <div class="row"><span>Citrus</span><div class="bar c-amber" style="--w:71%"></div><span class="val">10</span></div>
+      <div class="row"><span>Date palm</span><div class="bar c-purple" style="--w:29%"></div><span class="val">4</span></div>
+    </div>
+    <ul class="bullets small">
+      <li>One leaf measures one leaf; real traffic is mixed.</li>
+      <li>The file (<code>mix.npy</code>) makes a re-run see the same inputs.</li>
+      <li>For a language model the mix is prompts of the field's lengths.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>A classifier's time hardly depends on the leaf; a language model's depends a lot on the prompt and answer lengths, so there the mix matters most.</p></aside>
+</section>
+
+<section class="slide" data-label="Intervals" id="bootstrap-interval" data-lo="LO6">
+  <div class="kicker">Percentiles with intervals</div>
+  <h2>A bootstrap interval says how far the median could move on a re-run</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 4.2"><code class="language-python">rng = np.random.default_rng(206)
+boots = np.percentile(
+    ms[rng.integers(0, n, (2000, n))], q, axis=1)
+low, high = np.percentile(boots, [2.5, 97.5])</code></pre>
+    <ul class="bullets small">
+      <li>Resample the timings with replacement, recompute the percentile, 2,000 times.</li>
+      <li>The middle 95% of those values is the interval.</li>
+      <li>The 95th percentile's interval is wider: it rests on fewer calls.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Bootstrapping assumes the calls are independent; consecutive timings on a laptop are slightly correlated (turbo, background tasks). Repeating the whole benchmark, as step 5 does, is the honest complement.</p></aside>
+</section>
+
+<section class="slide" data-label="Report" id="benchmark-report" data-lo="LO6">
+  <div class="kicker">Measured in Lab 4.2: batch 1, 300 calls after 30 warm-up, four threads</div>
+  <h2>The 8-bit file is about twice as fast at the median, and the two intervals do not overlap</h2>
+  <table class="t">
+    <tr><th>Variant</th><th class="num">Median ms [95% interval]</th><th class="num">p95 ms [95% interval]</th><th class="num">MB</th></tr>
+    <tr><td>Waraqa 32-bit</td><td class="num">4.18 [4.08, 4.37]</td><td class="num">7.99 [7.60, 9.02]</td><td class="num">1.16</td></tr>
+    <tr class="hl"><td>Waraqa 8-bit</td><td class="num">2.17 [2.06, 2.30]</td><td class="num">5.15 [4.25, 5.76]</td><td class="num">0.31</td></tr>
+  </table>
+  <p class="small mt">Re-run on the same laptop: medians moved +7.5% (32-bit) and +8.6% (8-bit), both within 10%.</p>
+  <aside class="notes"><p>From the course's run of Lab 4.2 in full mode. If the intervals of the two medians overlap, the report says "not distinguishable on this machine". The command-line version is labs/bench.py, which the capstone uses.</p></aside>
+</section>
+
+<section class="slide" data-label="Outside 10%" id="rerun-outside" data-lo="LO6">
+  <div class="kicker">When a re-run disagrees</div>
+  <h2>Find the difference in conditions before reporting either number</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal flat"><h4>The machine</h4><p class="small mb0">Load at start, power mode, battery, temperature, another processor.</p></div>
+    <div class="card c-cyan flat"><h4>The settings</h4><p class="small mb0">Threads, batch, runtime version, graph optimisation level.</p></div>
+    <div class="card c-coral flat"><h4>The inputs</h4><p class="small mb0">The same mix file? The same model file, byte for byte?</p></div>
+  </div>
+  <aside class="notes"><p>The follow-up task after the course is exactly this: the benchmark re-run on a second device, with a short comparison note. bench.py records the load at start for this reason.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-2" data-lo="LO6">
+  <div class="kicker">Checkpoint</div>
+  <h2>What do you report?</h2>
+  <div class="quiz" data-type="single" data-lo="LO6">
+    <p class="lead">The 8-bit median is 3% lower than the 32-bit median, and the two 95% intervals overlap by most of their width. What is the honest report?</p>
+    <div class="opts">
+      <div class="opt" data-ok>On this machine at batch 1 the two are not distinguishable; the 8-bit file is smaller</div>
+      <div class="opt" data-why="Reports the point estimates as if they settled the question">The 8-bit model is 3% faster</div>
+      <div class="opt" data-why="Turns overlapping intervals into a claim of equality, which they do not prove">The two models are exactly as fast</div>
+      <div class="opt" data-why="Keeps measuring until a difference appears, which inflates false findings">Repeat until the intervals separate, then report the difference</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Overlapping intervals mean the data cannot separate the two; report that, and the differences you can show (size).</div>
+  </div>
+  <aside class="notes"><p>Answer: A. The size difference is measured and certain; the speed difference is not. Point to the re-run rule of Lab 4.2: a second run within 10% before any claim.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-4-2" data-auto="lab" data-lab="4.2">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>Pair participants for step 5: they swap mix.npy and notebooks and re-run on each other's laptops. Usual problems: a different mix file; a laptop that switched to battery between runs; reading the 95th percentile of 20 calls. The stretch needs hyperfine installed (a package manager or its releases page).</p></aside>
 </section>
 
-<!-- Session 3 -->
-
+<!-- ======================= SESSION 3 ======================= -->
 <section class="slide section" id="s3" data-auto="section" data-session="3"></section>
 
-<section class="slide" id="s3-idea" data-lo="LO7">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
+<section class="slide" data-label="Floor" id="quality-floor" data-lo="LO5 LO7">
+  <div class="kicker">Nama's quality floor</div>
+  <h2>At most 1 point lost overall and 2 points on any crop</h2>
   <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
+    <ul class="bullets small">
+      <li>Compression changes errors <b>unevenly</b>: faint lesions, narrow leaflets, the rarest crop.</li>
+      <li>So every variant is checked overall and per crop, and Hasad per language variety (Lab 3.3).</li>
+      <li>Fairness, the first of SDAIA's AI Ethics Principles, shows up here as a per-group check.</li>
     </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+    <div class="card c-coral"><h4>The farmers behind a group</h4><p class="small mb0">Date palm is one leaf in ten in the data and the main crop of many farms in some regions.</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <aside class="notes"><p>Sources: SDAIA AI Ethics Principles (Fairness is the first principle). The floor numbers are the case's: Ghadeer set them. Ask the room what group they would check in their own capstone.</p></aside>
 </section>
 
-<section class="slide" id="s3-steps" data-lo="LO7">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Paired" id="paired-comparison" data-lo="LO5">
+  <div class="kicker">A paired comparison</div>
+  <h2>Compare two models on the same leaves; only the disagreements carry information</h2>
+  <table class="t">
+    <tr><th></th><th>Variant right</th><th>Variant wrong</th></tr>
+    <tr><td>Original right</td><td>both right</td><td class="num"><b>b</b>: lost</td></tr>
+    <tr><td>Original wrong</td><td class="num"><b>c</b>: gained</td><td>both wrong</td></tr>
+  </table>
+  <p class="small mt">Difference in accuracy = (c - b) / n. McNemar's exact test asks whether b and c could come from a fair coin.</p>
+  <aside class="notes"><p>Pairing removes the difficulty of each leaf from the comparison; two separate accuracies would carry that noise. Lab 4.3 uses scipy's binomtest for the exact test and a paired bootstrap for the interval.</p></aside>
+</section>
+
+<section class="slide" data-label="By crop" id="quality-by-crop" data-lo="LO5 LO7">
+  <div class="kicker">Measured in Lab 4.3 on the 2,000 held-out leaves</div>
+  <h2>Only the 8-bit file survives; pruning loses 23 points on date palm, the smallest crop</h2>
+  <table class="t small">
+    <tr><th>Variant</th><th class="num">Overall [95%]</th><th class="num">Tomato</th><th class="num">Cucumber</th><th class="num">Citrus</th><th class="num">Date palm</th><th>Verdict</th></tr>
+    <tr class="hl"><td>8-bit</td><td class="num">+0.0 [-0.1, +0.3]</td><td class="num">+0.0 [+0.0, +0.0]</td><td class="num">+0.0 [+0.0, +0.0]</td><td class="num">-0.2 [-0.6, +0.0]</td><td class="num">+1.0 [+0.0, +2.6]</td><td>accept</td></tr>
+    <tr><td>Pruned</td><td class="num">-4.1 [-5.0, -3.2]</td><td class="num">-1.4 [-2.4, -0.6]</td><td class="num">-1.0 [-1.8, -0.3]</td><td class="num">-4.0 [-5.7, -2.4]</td><td class="num">-23.3 [-30.1, -17.1]</td><td>reject</td></tr>
+    <tr><td>Waraqa-S</td><td class="num">-1.2 [-1.7, -0.6]</td><td class="num">-0.4 [-1.0, +0.0]</td><td class="num">-0.2 [-0.5, +0.0]</td><td class="num">+0.0 [+0.0, +0.0]</td><td class="num">-9.8 [-15.0, -5.2]</td><td>reject</td></tr>
+  </table>
+  <aside class="notes"><p>Differences against the 32-bit model in accuracy points, with paired bootstrap intervals. Verdict rule: reject when a point estimate breaks the floor; uncertain when an interval reaches below it; accept otherwise. From the course's run of Lab 4.3.</p></aside>
+</section>
+
+<section class="slide" data-label="Uncertain" id="uncertain-verdict" data-lo="LO7">
+  <div class="kicker">Reading an "uncertain"</div>
+  <h2>An uncertain verdict is a request for evidence, not a pass</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>About 200 date-palm leaves: one leaf is half a point.</li>
+      <li>The interval says how many more leaves would settle it.</li>
+      <li>Ask Nama for more labelled date-palm leaves before shipping, or keep the larger model for that crop.</li>
+    </ul>
+    <div class="card c-teal"><h4>LO5 evidence</h4><p class="small mb0">A comparison table of size, median and tail latency, and quality loss with an interval.</p></div>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>The evaluation set is part of the system: a group too small to evaluate is a data-collection task, written into the recommendation.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-3" data-lo="LO5">
+  <div class="kicker">Checkpoint</div>
+  <h2>Accept, reject or uncertain?</h2>
+  <div class="quiz" data-type="single" data-lo="LO5">
+    <p class="lead">A variant loses 0.4 points overall, interval [-1.3, +0.5], and 1.0 point on date palm, interval [-4.0, +2.0]. The floor is 1 point overall and 2 per crop. What is the verdict?</p>
+    <div class="opts">
+      <div class="opt" data-why="Reads only the point estimates, which do pass, and ignores the intervals">Accept: both losses are within the floor</div>
+      <div class="opt" data-why="Treats an interval reaching below the floor as proof of a loss below it">Reject: the intervals go below the floor</div>
+      <div class="opt" data-ok>Uncertain: the estimates pass but both intervals reach below the floor</div>
+      <div class="opt" data-why="Thinks a paired test is needed only overall; groups are where losses hide">Accept overall; per-crop intervals do not matter</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> The data are consistent with a loss beyond the floor; more evidence is needed before the variant ships.</div>
+  </div>
+  <aside class="notes"><p>Answer: C. Date palm is the smallest crop, so its interval is the widest; more held-out date-palm leaves narrow it. This is the reading Lab 4.3 asks for on every row.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-4-3" data-auto="lab" data-lab="4.3">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>All variants are supplied files, so nobody depends on yesterday's labs. Usual problems: comparing accuracies on different subsets; a bootstrap that resamples the two models separately (that is not paired); reading McNemar's p-value as the size of the effect. AI-tutor: the verdict is the participant's.</p></aside>
 </section>
 
-<!-- Session 4 -->
-
+<!-- ======================= SESSION 4 ======================= -->
 <section class="slide section" id="s4" data-auto="section" data-session="4"></section>
 
-<section class="slide" id="s4-idea" data-lo="LO7">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
-  </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+<section class="slide" data-label="Budget" id="nama-budget" data-lo="LO7">
+  <div class="kicker">Ghadeer's budget for Waraqa on a farm-office laptop</div>
+  <h2>Five lines, each measured, each with its margin</h2>
+  <table class="t">
+    <tr><th>Line</th><th>Limit</th></tr>
+    <tr><td>Latency</td><td>at most 15 ms at the 95th percentile, batch 1, four threads</td></tr>
+    <tr><td>Model file</td><td>at most 1 MB</td></tr>
+    <tr><td>Memory</td><td>at most 150 MB peak for the whole serving process</td></tr>
+    <tr><td>Quality overall</td><td>within 1 point of the 32-bit model on the held-out set</td></tr>
+    <tr><td>Quality per crop</td><td>within 2 points of the 32-bit model on every crop</td></tr>
+  </table>
+  <aside class="notes"><p>The budget is the case's; it lives in data/supplied/budget.json. Point out that it mixes speed, size, memory and quality: a variant that is fast and wrong fails it.</p></aside>
 </section>
 
-<section class="slide" id="s4-steps" data-lo="LO7">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="The table" id="results-table" data-lo="LO7">
+  <div class="kicker">Supplied to Lab 4.4: every variant on one laptop</div>
+  <h2>Only the 8-bit file meets every line; the faster pruned model fails on date palm</h2>
+  <table class="t small">
+    <tr><th>Variant</th><th>Runtime</th><th class="num">MB</th><th class="num">p95 ms</th><th class="num">Peak MB</th><th class="num">Accuracy</th><th class="num">Worst crop</th><th>Budget</th></tr>
+    <tr><td>Waraqa 32-bit</td><td>PyTorch eager</td><td class="num">1.17</td><td class="num">12.0</td><td class="num">227</td><td class="num">99.1%</td><td>none</td><td>fails: file, memory</td></tr>
+    <tr><td>Waraqa 32-bit</td><td>ONNX Runtime</td><td class="num">1.16</td><td class="num">2.4</td><td class="num">68</td><td class="num">99.1%</td><td>none</td><td>fails: file</td></tr>
+    <tr class="hl"><td>Waraqa 8-bit</td><td>ONNX Runtime</td><td class="num">0.31</td><td class="num">1.6</td><td class="num">66</td><td class="num">99.1%</td><td>citrus, -0.2 points</td><td>meets every line</td></tr>
+    <tr><td>Waraqa pruned</td><td>ONNX Runtime</td><td class="num">0.29</td><td class="num">1.1</td><td class="num">65</td><td class="num">95.0%</td><td>date palm, -23.3 points</td><td>fails: quality, date palm</td></tr>
+    <tr><td>Waraqa-S</td><td>ONNX Runtime</td><td class="num">0.29</td><td class="num">1.2</td><td class="num">65</td><td class="num">97.9%</td><td>date palm, -9.8 points</td><td>fails: quality, date palm</td></tr>
+  </table>
+  <aside class="notes"><p>Measured by labs/_tools/make_results.py on the course laptop: batch 1, four threads, 300 calls after 30 warm-up on the 40-leaf mix; peak memory of a fresh serving session; accuracy on the 2,000 held-out leaves. The participant's job is the filter and the paragraph, not the measurement.</p></aside>
+</section>
+
+<section class="slide" data-label="Energy" id="energy-estimate" data-lo="LO7">
+  <div class="kicker">Energy per prediction, as an estimate</div>
+  <h2>Time per prediction times an assumed power, with the assumption written next to it</h2>
+  <div class="cols cols-2">
+    <div class="card c-navy"><h4>Wh per 1,000 = watts x seconds per prediction x 1,000 / 3,600</h4><p class="small mb0">The course assumes 15 W for a thin laptop's processor under load; use your laptop's specification if you know it.</p></div>
+    <ul class="bullets small">
+      <li>No power meter in the room: this is an estimate, and says so.</li>
+      <li>Proportions between variants are meaningful; absolute numbers are rough.</li>
+      <li>Social and environmental benefit, one of SDAIA's AI Ethics Principles, enters the trade-off as a number.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>Sources: SDAIA AI Ethics Principles (Social and Environmental Benefits). A better estimate reads the processor's energy counters where the operating system exposes them; not portable across the room's laptops, so the course uses the assumption.</p></aside>
+</section>
+
+<section class="slide" data-label="Ordering" id="order-by-impact" data-lo="LO7">
+  <div class="kicker">The optimisation log</div>
+  <h2>List changes by measured impact, largest first, each with its quality check</h2>
+  <table class="t small">
+    <tr><th>#</th><th>Change</th><th>Measured effect</th><th>Quality</th></tr>
+    <tr><td>1</td><td>The change that moved the binding limit most</td><td>before and after, with intervals</td><td>paired, per group</td></tr>
+    <tr><td>2</td><td>The next one, measured after change 1</td><td>before and after</td><td>paired, per group</td></tr>
+    <tr><td>…</td><td>Changes that did nothing stay in the log</td><td>"no measurable effect"</td><td></td></tr>
+  </table>
+  <aside class="notes"><p>This is the capstone's largest rubric line (25 points). A change that did nothing is still evidence: it tells the next engineer not to try it again on that machine.</p></aside>
+</section>
+
+<section class="slide" data-label="Capstone brief" id="capstone-brief" data-lo="LO7">
+  <div class="kicker">Capstone kickoff</div>
+  <h2>Your optimisation study: a model, a device, a budget, a repository</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>A model of your choice: Waraqa, Hasad, or your own that runs on a laptop processor or a free notebook GPU.</li>
+      <li>A public repository whose README follows <code>labs/capstone/README_template.md</code>.</li>
+      <li>Baseline profile, changes ordered by measured impact, final latency, memory and quality against your budget, with intervals and the hardware.</li>
+    </ul>
+    <div class="card c-coral"><h4>The defence</h4><p class="small mb0">Eight minutes and four of questions. You re-run your benchmark live, predict the effect of a change the assessor proposes, then measure it.</p></div>
+  </div>
+  <aside class="notes"><p>AI-full in the capstone, which the participant defends live: an assistant may write code, but the participant must predict and explain every number. Profiler outputs, benchmark logs and the commit history are the authenticity evidence. Lab 4.4's last step writes the plan.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-4" data-lo="LO7">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which variant do you recommend?</h2>
+  <div class="quiz" data-type="single" data-lo="LO7">
+    <p class="lead">Variant A is the fastest but fails the quality floor on date palm. Variant B meets every line, with a p95 of 14.9 ms against a 15 ms budget, measured on the course laptop. What do you recommend?</p>
+    <div class="opts">
+      <div class="opt" data-why="Puts speed before a quality floor the company set">A, because speed matters most in the field</div>
+      <div class="opt" data-why="Treats a 0.1 ms margin on another machine as settled">B, with no further condition</div>
+      <div class="opt" data-why="Rejects a variant that meets every line because its margin is small">Neither: keep the 32-bit model until something is faster</div>
+      <div class="opt" data-ok>B, with its margin stated and a re-run on a farm-office laptop before it ships</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> B meets the budget on the measured machine; a 0.1 ms margin is inside the noise of another laptop, so the target device has the last word.</div>
+  </div>
+  <aside class="notes"><p>Answer: D. This is the shape of the Lab 4.4 choice paragraph: the variant, the line it meets, its margin, and what must be checked on the target device.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-4-4" data-auto="lab" data-lab="4.4">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>The table is supplied: nobody needs their earlier results. The paragraph is written by the participant (AI-tutor only for reading the table). Collect each capstone plan before the end of the day; a model that cannot be profiled on a laptop or in Colab is redirected now, not on Day 5.</p></aside>
 </section>
 
-<section class="slide" id="wrap-up">
-  <div class="kicker">Day 4 · wrap-up</div>
-  <h2>Three things to keep</h2>
+<!-- ======================= CLOSING ======================= -->
+<section class="slide" data-label="Recap" id="day-4-recap">
+  <div class="kicker">Day 4 recap</div>
+  <h2>Three things to keep from the course</h2>
   <div class="cols cols-3">
-    <div class="card c-teal"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-coral"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-purple"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
+    <div class="card c-teal"><h4>Measure first</h4><p class="small mb0">Profile, find the binding limit, fix the largest cost, measure again.</p></div>
+    <div class="card c-cyan"><h4>Honest numbers</h4><p class="small mb0">Warm-up, repetitions, fixed inputs, intervals, the machine, a re-run within 10%.</p></div>
+    <div class="card c-coral"><h4>Quality must survive</h4><p class="small mb0">Every speed-up is checked, paired and per group, against a floor set in advance.</p></div>
   </div>
+  <aside class="notes"><p>Beyond one machine: serving under load and cost at scale are in AE-205 and AE-401; fine-tuning and distillation in practice in AE-310.</p></aside>
 </section>
 
-<section class="slide dark" id="next" data-label="Next">
-  <div class="kicker">Next</div>
-  <h2>Capstone: Capstone project presentations</h2>
-  <p class="lead">REPLACE: what participants prepare before then; unfinished labs can be finished at home</p>
-  <aside class="notes">REPLACE: accounts, installs or reading participants need before the next unit</aside>
+<section class="slide dark" data-label="Tomorrow" id="tomorrow-capstone">
+  <div class="kicker">Tomorrow · Day 5</div>
+  <h2>Capstone presentations</h2>
+  <p class="lead">Bring your repository, your benchmark ready to re-run on your laptop, and a recorded backup of the run. Eight minutes, then four of questions; the assessor will propose one change for you to predict and measure.</p>
+  <aside class="notes"><p>The follow-up task after the course: re-run the benchmark on a second device and write a short comparison note.</p></aside>
 </section>
