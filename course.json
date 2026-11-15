@@ -9,7 +9,7 @@
     "en": "Machine Learning Systems on One Machine",
     "ar": "أنظمة تعلم الآلة على جهاز واحد"
   },
-  "tagline": "REPLACE: one line under the title: what participants can do after the course",
+  "tagline": "Find where time and memory go on one machine, fix the largest cost first, and prove each speed-up kept its quality",
   "description": "Participants find out where time and memory go between raw data and a served prediction, and fix the largest cost first. For a fictional agritech company they profile a data pipeline and a training step, estimate memory from weights, activations, optimiser state and the key-value cache, apply mixed precision, batching, quantisation and pruning, export a model to a portable runtime, and benchmark latency, throughput and quality with repeated runs and intervals. Labs run on a laptop CPU, with an optional free notebook GPU, and every speed-up must be measured and checked for loss of quality.",
   "track": "ai-engineering",
   "level": 200,
@@ -21,7 +21,8 @@
   "prerequisites": [
     "AE-202 Deep Learning and Generative AI Fundamentals",
     "Trains a small neural network with a hand-written training loop",
-    "Reads a histogram and computes a percentile"
+    "Reads a histogram and computes a percentile",
+    "Setup: a laptop with uv (any recent processor, 8 GB of memory), or Google Colab, where a free GPU runtime is optional. Nothing downloads a model: both models are in the repository. Run 00_setup_check before Day 1; see labs/README.md."
   ],
   "site": {
     "url": "https://sdaiaacademy.github.io/ae-206/",
@@ -72,8 +73,8 @@
     }
   ],
   "case_study": {
-    "name": "REPLACE: the name of the fictional organisation every lab works on",
-    "summary": "REPLACE: two sentences on the case study and its synthetic data"
+    "name": "Nama Agritech",
+    "summary": "Nama Agritech is a fictional farm-advisory company whose agents run two models on old farm-office laptops: Waraqa, a leaf-disease classifier trained on 20,000 synthetic leaf images in ten disease classes and four crops, and Hasad, a small language model the course trained to answer 2,000 synthetic Arabic farmer questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English. Participants measure, profile, estimate memory, compress, export and benchmark both against the budget Nama set for its laptops; all data is synthetic and generated with a fixed seed."
   },
   "format": "intensive",
   "format_note": "Intensive: 4 teaching days of four sessions and a capstone day, with guided pre-work and a tracked follow-up task",
@@ -95,23 +96,51 @@
         {
           "title": "Compute, memory and bandwidth",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Estimate the FLOPs and bytes moved of a layer",
+            "Place a layer on a roofline from its arithmetic intensity",
+            "Name the binding limit of a described workload"
           ],
           "lo": [
             "LO1"
           ],
           "lab": {
             "id": "1.1",
-            "title": "Estimate arithmetic intensity for two layers, predict which is memory-bound, then time both",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Two layers on the roofline",
+            "summary": "Measure the laptop's peak compute and bandwidth, estimate the arithmetic intensity of a matrix product and an elementwise layer, predict which one is memory-bound, then time both and place them on a roofline.",
             "minutes": 25,
-            "href": "D1_1_estimate_arithmetic_intensity.ipynb"
-          }
+            "href": "D1_1_roofline.ipynb",
+            "steps": [
+              {
+                "text": "Measure peak compute with a large matrix product",
+                "minutes": 5
+              },
+              {
+                "text": "Measure bandwidth with a large copy",
+                "minutes": 4
+              },
+              {
+                "text": "Estimate FLOPs and bytes of both layers by hand",
+                "minutes": 6
+              },
+              {
+                "text": "Predict, then time both layers",
+                "minutes": 5
+              },
+              {
+                "text": "Place both on the roofline",
+                "minutes": 5
+              }
+            ],
+            "stretch": "Repeat the matrix product at batch 1 and watch it slide under the bandwidth roof"
+          },
+          "summary": "Compute, memory capacity and bandwidth as the three limits, and the roofline that says which one binds"
         },
         {
           "title": "Timers, profilers and noise",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Time a call correctly with a monotonic clock and warm-up",
+            "Report a distribution with its median and tail percentiles",
+            "Show how background load changes the tail"
           ],
           "lo": [
             "LO2",
@@ -119,45 +148,122 @@
           ],
           "lab": {
             "id": "1.2",
-            "title": "Time one inference 100 times, plot the distribution and show how warm-up and background load change it",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Noise in one inference",
+            "summary": "Time one Waraqa inference 100 times, plot the distribution and show how the first calls and a busy machine change it.",
             "minutes": 25,
-            "href": "D1_2_time_one_inference.ipynb"
-          }
+            "href": "D1_2_timing_noise.ipynb",
+            "steps": [
+              {
+                "text": "Time one inference 100 times",
+                "minutes": 5
+              },
+              {
+                "text": "Plot the distribution and read its percentiles",
+                "minutes": 5
+              },
+              {
+                "text": "Cold start: the first calls against the rest",
+                "minutes": 5
+              },
+              {
+                "text": "Background load: repeat while another process computes",
+                "minutes": 6
+              },
+              {
+                "text": "Write the timing rule for the course",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Change the thread count and see which percentile moves most"
+          },
+          "summary": "Timers, warm-up, variance and percentiles: why one timing is never the answer"
         },
         {
           "title": "Profiling a training step",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Split a training step into loading, forward, backward and optimiser time",
+            "Read a profiler table sorted by self time",
+            "Name the largest bottleneck from the measurements"
           ],
           "lo": [
             "LO2"
           ],
           "lab": {
             "id": "1.3",
-            "title": "Profile one training step and rank data loading, forward pass, backward pass and optimiser time",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Profile Lina's training step",
+            "summary": "Profile one step of the slow training script on the field app's PNG export and rank data loading, forward pass, backward pass and optimiser time.",
             "minutes": 25,
-            "href": "D1_3_profile_one_training.ipynb"
-          }
+            "href": "D1_3_profile_step.ipynb",
+            "steps": [
+              {
+                "text": "Run the slow script and time its first steps",
+                "minutes": 4
+              },
+              {
+                "text": "Time each phase with timers",
+                "minutes": 6
+              },
+              {
+                "text": "Profile one step with the framework profiler",
+                "minutes": 6
+              },
+              {
+                "text": "Rank the four phases",
+                "minutes": 5
+              },
+              {
+                "text": "Name the largest bottleneck",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Record a flame graph of the same script with py-spy"
+          },
+          "summary": "The anatomy of a training step, read with timers and with the framework's profiler"
         },
         {
           "title": "Fixing an input-bound pipeline",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Tell an input-bound step from a compute-bound one",
+            "Add parallel loading and a cache of preprocessed data",
+            "Measure the speed-up and say which change bought it"
           ],
           "lo": [
             "LO2"
           ],
           "lab": {
             "id": "1.4",
-            "title": "Add parallel loading, caching and a faster image format and measure the change in step time",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Fix the input pipeline",
+            "summary": "Add parallel loading, a cache of decoded images and a faster image format to Lina's loader and measure the change in step time.",
             "minutes": 25,
-            "href": "D1_4_add_parallel_loading.ipynb"
-          }
+            "href": "D1_4_input_pipeline.ipynb",
+            "steps": [
+              {
+                "text": "Baseline: step time and loader time",
+                "minutes": 4
+              },
+              {
+                "text": "Parallel workers",
+                "minutes": 6
+              },
+              {
+                "text": "Cache the decoded images",
+                "minutes": 6
+              },
+              {
+                "text": "A faster image format",
+                "minutes": 5
+              },
+              {
+                "text": "The before-and-after table",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Find the worker count after which the step stops getting faster"
+          },
+          "summary": "Decoding, file formats, parallel workers and caching: removing an input bottleneck"
         }
-      ]
+      ],
+      "subtitle": "Where time goes, measured before anything is changed"
     },
     {
       "id": "day2",
@@ -168,68 +274,175 @@
         {
           "title": "Where memory goes",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Compute the bytes of weights, gradients and optimiser state",
+            "Estimate activation memory from layer shapes and batch size",
+            "Explain the gap between an estimate and a measured peak"
           ],
           "lo": [
+            "LO1",
             "LO3"
           ],
           "lab": {
             "id": "2.1",
-            "title": "Estimate and measure peak memory for weights, activations and optimiser state at three batch sizes",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Memory at three batch sizes",
+            "summary": "Estimate, then measure, peak training memory of Waraqa for weights, activations and optimiser state at batch 16, 64 and 256.",
             "minutes": 25,
-            "href": "D2_1_estimate_measure_peak.ipynb"
-          }
+            "href": "D2_1_memory_budget.ipynb",
+            "steps": [
+              {
+                "text": "Count weights, gradients and optimiser state",
+                "minutes": 5
+              },
+              {
+                "text": "Estimate activations by hand",
+                "minutes": 6
+              },
+              {
+                "text": "Measure peak memory at three batch sizes",
+                "minutes": 7
+              },
+              {
+                "text": "Explain each difference",
+                "minutes": 4
+              },
+              {
+                "text": "Predict batch 512 before running it",
+                "minutes": 3
+              }
+            ],
+            "stretch": "Swap AdamW for SGD with momentum and predict the change first"
+          },
+          "summary": "Weights, gradients, optimiser state and activations: an estimate you can check"
         },
         {
           "title": "Mixed precision",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Choose between float32, float16 and bfloat16 for a step",
+            "Train with autocast and compare time and accuracy",
+            "Read whether a processor has native support before expecting a speed-up"
           ],
           "lo": [
             "LO4"
           ],
           "lab": {
             "id": "2.2",
-            "title": "Train with and without reduced precision and compare time per step and validation accuracy",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Reduced precision",
+            "summary": "Train Waraqa from a warm-start checkpoint with and without bfloat16 autocast and compare time per step and validation accuracy.",
             "minutes": 25,
-            "href": "D2_2_train_without_reduced.ipynb"
-          }
+            "href": "D2_2_mixed_precision.ipynb",
+            "steps": [
+              {
+                "text": "What this processor supports",
+                "minutes": 3
+              },
+              {
+                "text": "Train in 32-bit for a fixed number of steps",
+                "minutes": 6
+              },
+              {
+                "text": "Train the same steps with bfloat16 autocast",
+                "minutes": 6
+              },
+              {
+                "text": "Validation accuracy of both",
+                "minutes": 5
+              },
+              {
+                "text": "The results row for each setting",
+                "minutes": 5
+              }
+            ],
+            "stretch": "On a Colab GPU, float16 autocast with a gradient scaler"
+          },
+          "summary": "Number formats, autocast and what the hardware actually accelerates"
         },
         {
           "title": "Accumulation and checkpointing",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Reach an effective batch with gradient accumulation",
+            "Trade recomputation for memory with activation checkpointing",
+            "Verify that a memory saving did not change the gradient"
           ],
           "lo": [
-            "LO3"
+            "LO3",
+            "LO4"
           ],
           "lab": {
             "id": "2.3",
-            "title": "Fit a larger effective batch in fixed memory with gradient accumulation and activation checkpointing",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "A large batch in fixed memory",
+            "summary": "Fit an effective batch of 256 into Nama's training memory budget with gradient accumulation and activation checkpointing, and measure what each costs in time.",
             "minutes": 25,
-            "href": "D2_3_fit_larger_effective.ipynb"
-          }
+            "href": "D2_3_accumulate_checkpoint.ipynb",
+            "steps": [
+              {
+                "text": "Batch 256 against the budget",
+                "minutes": 4
+              },
+              {
+                "text": "Accumulation: four micro-batches of 64",
+                "minutes": 6
+              },
+              {
+                "text": "Check: the same gradient as one large batch",
+                "minutes": 5
+              },
+              {
+                "text": "Activation checkpointing",
+                "minutes": 6
+              },
+              {
+                "text": "Memory and time per method",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Checkpoint two segments against four and find the cheapest that fits"
+          },
+          "summary": "Gradient accumulation and activation checkpointing: a large batch in fixed memory"
         },
         {
           "title": "Compilation and fusion",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Fold a batch norm into the convolution before it",
+            "Measure a compiler's first-call cost against its steady-state gain",
+            "Complete a results table of time, memory and accuracy per setting"
           ],
           "lo": [
             "LO4"
           ],
           "lab": {
             "id": "2.4",
-            "title": "Compile the model and measure the first-call cost and the steady-state speed-up",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Compile and fuse",
+            "summary": "Fold batch norm into Waraqa's convolutions by hand, compile the model where a compiler is available, and measure the first-call cost and the steady-state speed-up.",
             "minutes": 25,
-            "href": "D2_4_compile_model_measure.ipynb"
-          }
+            "href": "D2_4_compile_fusion.ipynb",
+            "steps": [
+              {
+                "text": "Eager baseline",
+                "minutes": 4
+              },
+              {
+                "text": "Fold batch norm into the convolution",
+                "minutes": 7
+              },
+              {
+                "text": "Check that the outputs match",
+                "minutes": 4
+              },
+              {
+                "text": "Compile: first call and steady state",
+                "minutes": 6
+              },
+              {
+                "text": "Complete the results table",
+                "minutes": 4
+              }
+            ],
+            "stretch": "In Colab, compare the default compile mode with max-autotune"
+          },
+          "summary": "Graphs, operator fusion and compilation: the first-call cost and the steady state"
         }
-      ]
+      ],
+      "subtitle": "Memory first, then the three ways to train faster in it"
     },
     {
       "id": "day3",
@@ -240,23 +453,52 @@
         {
           "title": "Latency, throughput and batching",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Measure latency and throughput across batch sizes",
+            "Explain why batching raises throughput and latency together",
+            "Choose a batch size for a latency budget"
           ],
           "lo": [
-            "LO4"
+            "LO4",
+            "LO6"
           ],
           "lab": {
             "id": "3.1",
-            "title": "Serve the classifier at batch sizes from 1 to 64 and plot latency against throughput",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Batch size against latency",
+            "summary": "Serve Waraqa at batch sizes from 1 to 64, plot latency against throughput and add the time a request waits for its batch.",
             "minutes": 25,
-            "href": "D3_1_serve_classifier_batch.ipynb"
-          }
+            "href": "D3_1_batching.ipynb",
+            "steps": [
+              {
+                "text": "Time batch sizes from 1 to 64",
+                "minutes": 6
+              },
+              {
+                "text": "Throughput per batch size",
+                "minutes": 4
+              },
+              {
+                "text": "Plot latency against throughput",
+                "minutes": 5
+              },
+              {
+                "text": "Add the wait for the batch to fill",
+                "minutes": 6
+              },
+              {
+                "text": "Pick the batch size for the farm office",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Simulate dynamic batching with a timeout and find its tail latency"
+          },
+          "summary": "Latency against throughput, batching and the queue that batching creates"
         },
         {
           "title": "Language model inference on a laptop",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Measure time to first token and tokens per second",
+            "Size a key-value cache from the model's shape",
+            "Route a question by its data classification"
           ],
           "lo": [
             "LO1",
@@ -264,45 +506,122 @@
           ],
           "lab": {
             "id": "3.2",
-            "title": "Measure time to first token and tokens per second for a small model at three context lengths and size its key-value cache",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Hasad on a laptop",
+            "summary": "Measure Hasad's time to first token and tokens per second at three context lengths, size its key-value cache, and route farmer questions to the device or a hosted model by data classification.",
             "minutes": 25,
-            "href": "D3_2_measure_time_first.ipynb"
-          }
+            "href": "D3_2_lm_inference.ipynb",
+            "steps": [
+              {
+                "text": "Time to first token at three context lengths",
+                "minutes": 6
+              },
+              {
+                "text": "Tokens per second while decoding",
+                "minutes": 4
+              },
+              {
+                "text": "Size the key-value cache by hand",
+                "minutes": 5
+              },
+              {
+                "text": "Check the estimate against the cache tensors",
+                "minutes": 4
+              },
+              {
+                "text": "Route questions by classification",
+                "minutes": 6
+              }
+            ],
+            "stretch": "Decode without the cache and measure what it costs"
+          },
+          "summary": "Prefill and decode, the key-value cache and its arithmetic, and which questions may leave the device"
         },
         {
           "title": "Quantisation",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Quantise a classifier to 8 bits with calibration data",
+            "Compare 8-bit and 4-bit language model files on size, speed and answers",
+            "Re-measure quality by group after every quantisation"
           ],
           "lo": [
             "LO5"
           ],
           "lab": {
             "id": "3.3",
-            "title": "Quantise the classifier to 8-bit, load supplied 8-bit and 4-bit files of the language model, and measure size, speed and quality loss on a fixed question set",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Quantise Waraqa and Hasad",
+            "summary": "Quantise Waraqa to 8 bits, load the supplied 8-bit and 4-bit files of Hasad, and measure size, speed and quality loss on the fixed question set.",
             "minutes": 25,
-            "href": "D3_3_quantise_classifier_8.ipynb"
-          }
+            "href": "D3_3_quantisation.ipynb",
+            "steps": [
+              {
+                "text": "Calibrate and quantise Waraqa to 8 bits",
+                "minutes": 6
+              },
+              {
+                "text": "Size, latency and accuracy of both Waraqa files",
+                "minutes": 5
+              },
+              {
+                "text": "Load Hasad's 8-bit and 4-bit files",
+                "minutes": 4
+              },
+              {
+                "text": "Size, speed and right answers by language variety",
+                "minutes": 6
+              },
+              {
+                "text": "One comparison table",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Quantise Waraqa dynamically instead and compare with the static file"
+          },
+          "summary": "Quantisation formats, scales and calibration, for a classifier and a language model"
         },
         {
           "title": "Pruning or a smaller model",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Prune whole channels by an importance score",
+            "Recover accuracy with brief fine-tuning",
+            "Compare a pruned model with a smaller one trained from scratch"
           ],
           "lo": [
             "LO5"
           ],
           "lab": {
             "id": "3.4",
-            "title": "Prune the classifier, fine-tune briefly and compare with a smaller architecture trained from scratch",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Prune or shrink",
+            "summary": "Prune half of Waraqa's channels, fine-tune briefly and compare with Waraqa-S, the smaller architecture trained from scratch.",
             "minutes": 25,
-            "href": "D3_4_prune_classifier_fine.ipynb"
-          }
+            "href": "D3_4_pruning.ipynb",
+            "steps": [
+              {
+                "text": "Score channels by their L1 norm",
+                "minutes": 4
+              },
+              {
+                "text": "Prune half and measure accuracy",
+                "minutes": 5
+              },
+              {
+                "text": "Fine-tune briefly",
+                "minutes": 6
+              },
+              {
+                "text": "Compare with Waraqa-S",
+                "minutes": 5
+              },
+              {
+                "text": "Size, latency and accuracy table",
+                "minutes": 5
+              }
+            ],
+            "stretch": "Mask half the weights without removing channels: does it run faster?"
+          },
+          "summary": "Unstructured and structured pruning, a smaller architecture, and distillation as an idea"
         }
-      ]
+      ],
+      "subtitle": "Serving one prediction fast, then making the model smaller"
     },
     {
       "id": "day4",
@@ -313,79 +632,186 @@
         {
           "title": "Export to a portable runtime",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Export a model to an exchange format with a dynamic batch axis",
+            "Check runtime outputs against the original within a tolerance",
+            "Compare graph optimisation levels of a runtime"
           ],
           "lo": [
             "LO5"
           ],
           "lab": {
             "id": "4.1",
-            "title": "Export the classifier to an exchange format, run it in a portable runtime and check that outputs match within tolerance",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Export and check parity",
+            "summary": "Export Waraqa to ONNX, find why the supplied export does not match, run it in ONNX Runtime and check that outputs agree within tolerance.",
             "minutes": 25,
-            "href": "D4_1_export_classifier_exchange.ipynb"
-          }
+            "href": "D4_1_export_parity.ipynb",
+            "steps": [
+              {
+                "text": "Run the supplied export",
+                "minutes": 4
+              },
+              {
+                "text": "Find why the outputs differ",
+                "minutes": 6
+              },
+              {
+                "text": "Export with a dynamic batch axis",
+                "minutes": 4
+              },
+              {
+                "text": "Parity within tolerance on 500 leaves",
+                "minutes": 6
+              },
+              {
+                "text": "Graph optimisation levels",
+                "minutes": 5
+              }
+            ],
+            "stretch": "Count the nodes of the graph before and after optimisation"
+          },
+          "summary": "Exchange formats, graph optimisation and runtimes for processors, edge devices and small language models"
         },
         {
           "title": "A benchmark you can trust",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Write a benchmark that controls warm-up, repetitions and input mix",
+            "Report percentiles with bootstrap confidence intervals",
+            "Re-run a benchmark and judge the agreement"
           ],
           "lo": [
             "LO6"
           ],
           "lab": {
             "id": "4.2",
-            "title": "Write a benchmark with warm-up, repetitions and a fixed input mix and report percentiles with intervals",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "A benchmark you can trust",
+            "summary": "Write a benchmark of two Waraqa variants with warm-up, repetitions and a fixed input mix, report percentiles with intervals, and re-run it.",
             "minutes": 25,
-            "href": "D4_2_write_benchmark_warm.ipynb"
-          }
+            "href": "D4_2_benchmark.ipynb",
+            "steps": [
+              {
+                "text": "Warm-up and repetitions",
+                "minutes": 5
+              },
+              {
+                "text": "A fixed input mix",
+                "minutes": 4
+              },
+              {
+                "text": "Percentiles with bootstrap intervals",
+                "minutes": 6
+              },
+              {
+                "text": "Both variants in one report",
+                "minutes": 5
+              },
+              {
+                "text": "Re-run and compare within 10%",
+                "minutes": 5
+              }
+            ],
+            "stretch": "Time the benchmark script from the command line with hyperfine"
+          },
+          "summary": "Benchmark design: warm-up, repetitions, a fixed input mix, intervals and a re-run"
         },
         {
           "title": "Quality must survive",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Compare two models on the same items with a paired test",
+            "Put an interval on an accuracy difference",
+            "Accept or reject a variant on the quality floor by crop type"
           ],
           "lo": [
+            "LO5",
             "LO7"
           ],
           "lab": {
             "id": "4.3",
-            "title": "Evaluate each compressed variant on the held-out set with a paired comparison against the original, by crop type",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Quality by crop type",
+            "summary": "Evaluate each compressed Waraqa on the held-out set against the original with a paired comparison, overall and by crop type.",
             "minutes": 25,
-            "href": "D4_3_evaluate_each_compressed.ipynb"
-          }
+            "href": "D4_3_quality_by_crop.ipynb",
+            "steps": [
+              {
+                "text": "Predictions of each variant",
+                "minutes": 4
+              },
+              {
+                "text": "Paired differences overall",
+                "minutes": 6
+              },
+              {
+                "text": "An interval on each difference",
+                "minutes": 5
+              },
+              {
+                "text": "By crop type",
+                "minutes": 6
+              },
+              {
+                "text": "Accept or reject each variant",
+                "minutes": 4
+              }
+            ],
+            "stretch": "Which leaves flip from right to wrong? Look at twelve of them"
+          },
+          "summary": "Paired comparison of a compressed model with the original, overall and by group"
         },
         {
           "title": "Budgets and trade-offs",
           "outcomes": [
-            "REPLACE: what a participant can do after this session"
+            "Choose the variant that meets a latency and memory budget",
+            "Estimate energy per 1,000 predictions",
+            "Order optimisation changes by measured impact"
           ],
           "lo": [
             "LO7"
           ],
           "lab": {
             "id": "4.4",
-            "title": "From a supplied results table, choose the variant that meets the latency and memory budget, justify it in one paragraph and choose the capstone model",
-            "summary": "REPLACE: one line on what participants build and take away; then list the steps of the lab in course.json, their minutes adding up to 25",
+            "title": "Choose under the budget",
+            "summary": "From a supplied results table, choose the variant that meets the farm-office budget, justify it in one paragraph, and choose the capstone model.",
             "minutes": 25,
-            "href": "D4_4_from_supplied_results.ipynb"
-          }
+            "href": "D4_4_budget_choice.ipynb",
+            "steps": [
+              {
+                "text": "Read the supplied results table",
+                "minutes": 4
+              },
+              {
+                "text": "Filter by the budget and the quality floor",
+                "minutes": 5
+              },
+              {
+                "text": "Energy per 1,000 predictions",
+                "minutes": 5
+              },
+              {
+                "text": "The one-paragraph justification",
+                "minutes": 6
+              },
+              {
+                "text": "Capstone model and budget",
+                "minutes": 5
+              }
+            ],
+            "stretch": "Tighten the latency budget by a third: what is left?"
+          },
+          "summary": "Budgets, ordering changes by measured impact, energy per prediction and the capstone brief"
         }
-      ]
+      ],
+      "subtitle": "A portable file, an honest benchmark, quality that survives, a choice"
     },
     {
       "id": "capstone",
       "kind": "capstone",
-      "title": "Capstone project presentations",
-      "deck": "slides/capstone.html"
+      "title": "Capstone: an optimisation study and its defence",
+      "deck": "slides/capstone.html",
+      "subtitle": "Eight minutes of results, a live re-run, four minutes of questions"
     }
   ],
   "capstone": {
     "summary": "An optimisation study on a model of the participant's choice, submitted as a public repository whose README reports the baseline profile, each change ordered by measured impact, and the final latency, memory and quality against a stated budget with intervals and the hardware used, followed by an eight-minute defence and four minutes of questions",
-    "submission": "REPLACE: what participants submit and how: a public repository link, or a shared folder for a course without code",
+    "submission": "A public GitHub repository whose README reports the baseline profile, each change ordered by measured impact, and the final latency, memory and quality against the stated budget with intervals and the hardware used; profiler outputs, benchmark logs and the commit history are in the repository. Then the eight-minute defence: the participant re-runs the benchmark live, predicts the effect of a change the assessor proposes and then measures it.",
     "talk_minutes": 8,
     "qa_minutes": 4,
     "rubric": [

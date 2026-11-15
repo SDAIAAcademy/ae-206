@@ -49,22 +49,22 @@ Every lab is a notebook in `labs/`. Open it in Google Colab from the course page
 
 | | Session | Lab | File |
 |---|---|---|---|
-| 1.1 | Day 1 · Session 1 | Estimate arithmetic intensity for two layers, predict which is memory-bound, then time both | [`D1_1_estimate_arithmetic_intensity.ipynb`](labs/D1_1_estimate_arithmetic_intensity.ipynb) |
-| 1.2 | Day 1 · Session 2 | Time one inference 100 times, plot the distribution and show how warm-up and background load change it | [`D1_2_time_one_inference.ipynb`](labs/D1_2_time_one_inference.ipynb) |
-| 1.3 | Day 1 · Session 3 | Profile one training step and rank data loading, forward pass, backward pass and optimiser time | [`D1_3_profile_one_training.ipynb`](labs/D1_3_profile_one_training.ipynb) |
-| 1.4 | Day 1 · Session 4 | Add parallel loading, caching and a faster image format and measure the change in step time | [`D1_4_add_parallel_loading.ipynb`](labs/D1_4_add_parallel_loading.ipynb) |
-| 2.1 | Day 2 · Session 1 | Estimate and measure peak memory for weights, activations and optimiser state at three batch sizes | [`D2_1_estimate_measure_peak.ipynb`](labs/D2_1_estimate_measure_peak.ipynb) |
-| 2.2 | Day 2 · Session 2 | Train with and without reduced precision and compare time per step and validation accuracy | [`D2_2_train_without_reduced.ipynb`](labs/D2_2_train_without_reduced.ipynb) |
-| 2.3 | Day 2 · Session 3 | Fit a larger effective batch in fixed memory with gradient accumulation and activation checkpointing | [`D2_3_fit_larger_effective.ipynb`](labs/D2_3_fit_larger_effective.ipynb) |
-| 2.4 | Day 2 · Session 4 | Compile the model and measure the first-call cost and the steady-state speed-up | [`D2_4_compile_model_measure.ipynb`](labs/D2_4_compile_model_measure.ipynb) |
-| 3.1 | Day 3 · Session 1 | Serve the classifier at batch sizes from 1 to 64 and plot latency against throughput | [`D3_1_serve_classifier_batch.ipynb`](labs/D3_1_serve_classifier_batch.ipynb) |
-| 3.2 | Day 3 · Session 2 | Measure time to first token and tokens per second for a small model at three context lengths and size its key-value cache | [`D3_2_measure_time_first.ipynb`](labs/D3_2_measure_time_first.ipynb) |
-| 3.3 | Day 3 · Session 3 | Quantise the classifier to 8-bit, load supplied 8-bit and 4-bit files of the language model, and measure size, speed and quality loss on a fixed question set | [`D3_3_quantise_classifier_8.ipynb`](labs/D3_3_quantise_classifier_8.ipynb) |
-| 3.4 | Day 3 · Session 4 | Prune the classifier, fine-tune briefly and compare with a smaller architecture trained from scratch | [`D3_4_prune_classifier_fine.ipynb`](labs/D3_4_prune_classifier_fine.ipynb) |
-| 4.1 | Day 4 · Session 1 | Export the classifier to an exchange format, run it in a portable runtime and check that outputs match within tolerance | [`D4_1_export_classifier_exchange.ipynb`](labs/D4_1_export_classifier_exchange.ipynb) |
-| 4.2 | Day 4 · Session 2 | Write a benchmark with warm-up, repetitions and a fixed input mix and report percentiles with intervals | [`D4_2_write_benchmark_warm.ipynb`](labs/D4_2_write_benchmark_warm.ipynb) |
-| 4.3 | Day 4 · Session 3 | Evaluate each compressed variant on the held-out set with a paired comparison against the original, by crop type | [`D4_3_evaluate_each_compressed.ipynb`](labs/D4_3_evaluate_each_compressed.ipynb) |
-| 4.4 | Day 4 · Session 4 | From a supplied results table, choose the variant that meets the latency and memory budget, justify it in one paragraph and choose the capstone model | [`D4_4_from_supplied_results.ipynb`](labs/D4_4_from_supplied_results.ipynb) |
+| 1.1 | Day 1 · Session 1 | Estimate arithmetic intensity for two layers, predict which is memory-bound, then time both | [`D1_1_roofline.ipynb`](labs/D1_1_roofline.ipynb) |
+| 1.2 | Day 1 · Session 2 | Time one inference 100 times, plot the distribution and show how warm-up and background load change it | [`D1_2_timing_noise.ipynb`](labs/D1_2_timing_noise.ipynb) |
+| 1.3 | Day 1 · Session 3 | Profile one training step and rank data loading, forward pass, backward pass and optimiser time | [`D1_3_profile_step.ipynb`](labs/D1_3_profile_step.ipynb) |
+| 1.4 | Day 1 · Session 4 | Add parallel loading, caching and a faster image format and measure the change in step time | [`D1_4_input_pipeline.ipynb`](labs/D1_4_input_pipeline.ipynb) |
+| 2.1 | Day 2 · Session 1 | Estimate and measure peak memory for weights, activations and optimiser state at three batch sizes | [`D2_1_memory_budget.ipynb`](labs/D2_1_memory_budget.ipynb) |
+| 2.2 | Day 2 · Session 2 | Train with and without reduced precision and compare time per step and validation accuracy | [`D2_2_mixed_precision.ipynb`](labs/D2_2_mixed_precision.ipynb) |
+| 2.3 | Day 2 · Session 3 | Fit a larger effective batch in fixed memory with gradient accumulation and activation checkpointing | [`D2_3_accumulate_checkpoint.ipynb`](labs/D2_3_accumulate_checkpoint.ipynb) |
+| 2.4 | Day 2 · Session 4 | Compile the model and measure the first-call cost and the steady-state speed-up | [`D2_4_compile_fusion.ipynb`](labs/D2_4_compile_fusion.ipynb) |
+| 3.1 | Day 3 · Session 1 | Serve the classifier at batch sizes from 1 to 64 and plot latency against throughput | [`D3_1_batching.ipynb`](labs/D3_1_batching.ipynb) |
+| 3.2 | Day 3 · Session 2 | Measure time to first token and tokens per second for a small model at three context lengths and size its key-value cache | [`D3_2_lm_inference.ipynb`](labs/D3_2_lm_inference.ipynb) |
+| 3.3 | Day 3 · Session 3 | Quantise the classifier to 8-bit, load supplied 8-bit and 4-bit files of the language model, and measure size, speed and quality loss on a fixed question set | [`D3_3_quantisation.ipynb`](labs/D3_3_quantisation.ipynb) |
+| 3.4 | Day 3 · Session 4 | Prune the classifier, fine-tune briefly and compare with a smaller architecture trained from scratch | [`D3_4_pruning.ipynb`](labs/D3_4_pruning.ipynb) |
+| 4.1 | Day 4 · Session 1 | Export the classifier to an exchange format, run it in a portable runtime and check that outputs match within tolerance | [`D4_1_export_parity.ipynb`](labs/D4_1_export_parity.ipynb) |
+| 4.2 | Day 4 · Session 2 | Write a benchmark with warm-up, repetitions and a fixed input mix and report percentiles with intervals | [`D4_2_benchmark.ipynb`](labs/D4_2_benchmark.ipynb) |
+| 4.3 | Day 4 · Session 3 | Evaluate each compressed variant on the held-out set with a paired comparison against the original, by crop type | [`D4_3_quality_by_crop.ipynb`](labs/D4_3_quality_by_crop.ipynb) |
+| 4.4 | Day 4 · Session 4 | From a supplied results table, choose the variant that meets the latency and memory budget, justify it in one paragraph and choose the capstone model | [`D4_4_budget_choice.ipynb`](labs/D4_4_budget_choice.ipynb) |
 <!-- /academy:labs -->
 
 ## Capstone
