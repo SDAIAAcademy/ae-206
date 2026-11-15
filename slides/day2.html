@@ -1,158 +1,414 @@
+<!-- ======================= OPENING ======================= -->
 <section class="slide title" id="title" data-auto="title">
-  <aside class="notes">REPLACE: welcome; introduce yourself; one question to the room that calibrates the pace; the rhythm of the day</aside>
+  <aside class="notes"><p>Open with yesterday's lesson in one line: the step is only as fast as its largest phase. Once the pipeline is fixed the step is compute-bound, and the next limits are memory and arithmetic. Today trains Waraqa four ways and measures each.</p></aside>
 </section>
 
 <section class="slide" id="agenda" data-auto="agenda"></section>
 
-<!-- Session 1 -->
-
-<section class="slide section" id="s1" data-auto="section" data-session="1"></section>
-
-<section class="slide" id="s1-idea" data-lo="LO3">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+<section class="slide" id="review-day-1" data-lo="LO1 LO2">
+  <div class="kicker">Review of Day 1</div>
+  <h2>Which measurement settles it?</h2>
+  <div class="quiz" data-type="single" data-lo="LO2">
+    <p class="lead">Lina says her new loader made training "much faster". She shows one epoch timed before (31 min) and one after (24 min), each run once, on different days. What do you ask for?</p>
+    <div class="opts">
+      <div class="opt" data-why="Accepts one run per side, which cannot separate the change from the day's load and the cold start">Nothing: 7 minutes is too large to be noise</div>
+      <div class="opt" data-ok>Phase times of both loaders over the same steps on the same machine, start-up excluded</div>
+      <div class="opt" data-why="Asks for an operator table, which does not show the Python loader's work at all">The framework profiler's operator table for the new loader</div>
+      <div class="opt" data-why="Trusts a theoretical figure where a measurement is cheap and decisive">The roofline estimate of the loader</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> A before-and-after claim needs both sides measured the same way: same steps, same machine, start-up excluded, per phase so the change is explained.</div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <aside class="notes"><p>Answer: B. This is LO2's evidence in one sentence: a before-and-after profile and a measured speed-up with the change explained.</p></aside>
 </section>
 
-<section class="slide" id="s1-steps" data-lo="LO3">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<!-- ======================= SESSION 1 ======================= -->
+<section class="slide section" id="s1" data-auto="section" data-session="1"></section>
+
+<section class="slide" data-label="Four parts" id="four-parts-of-memory" data-lo="LO3">
+  <div class="kicker">What a training step holds</div>
+  <h2>Training memory has four parts, and only one grows with the batch</h2>
+  <div class="cols cols-4 gap-s">
+    <div class="card c-navy"><h4>Weights</h4><p class="small mb0">4 bytes per parameter in float32.</p></div>
+    <div class="card c-teal"><h4>Gradients</h4><p class="small mb0">One per weight: another 4 bytes.</p></div>
+    <div class="card c-cyan"><h4>Optimiser state</h4><p class="small mb0">AdamW keeps two numbers per weight: 8 bytes.</p></div>
+    <div class="card c-coral"><h4>Activations</h4><p class="small mb0">What the forward pass keeps for the backward pass: grows with batch and image size.</p></div>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <div class="callout tip mt"><b>Rule of thumb.</b> 16 bytes per parameter before any activation, for float32 and AdamW.</div>
+  <aside class="notes"><p>Work the rule on a 1-billion-parameter model: 16 GB before activations. For Waraqa (about 290,000 parameters) it is under 5 MB. Ask: so where does Waraqa's memory go? The answer is the next slide.</p></aside>
+</section>
+
+<section class="slide" data-label="Activations" id="activation-estimate" data-lo="LO3">
+  <div class="kicker">Estimate by hand</div>
+  <h2>Each convolution block keeps about two tensors the size of its output</h2>
+  <table class="t small">
+    <tr><th>Block output (per leaf)</th><th class="num">Numbers</th></tr>
+    <tr><td>32 x 64 x 64, twice</td><td class="num">2 x 131,072</td></tr>
+    <tr><td>64 x 32 x 32, twice</td><td class="num">2 x 65,536</td></tr>
+    <tr><td>128 x 16 x 16</td><td class="num">32,768</td></tr>
+    <tr><td>128 x 8 x 8</td><td class="num">8,192</td></tr>
+    <tr class="hl"><td>Sum, x 2 tensors x 4 bytes</td><td class="num">about 3.5 MB per leaf</td></tr>
+  </table>
+  <aside class="notes"><p>The two tensors are the batch norm's input and the ReLU's output (the next convolution reuses that). Max pooling also keeps the positions of its maxima as 8-byte integers: the estimate leaves them out on purpose, and Lab 2.1 asks participants to find the gap.</p></aside>
+</section>
+
+<section class="slide" data-label="Measured" id="memory-measured" data-lo="LO3">
+  <div class="kicker">Measured in Lab 2.1: one AdamW step of Waraqa</div>
+  <h2>Activations dominate, and grow in proportion to the batch</h2>
+  <table class="t">
+    <tr><th>Batch</th><th class="num">Estimate MB</th><th class="num">Saved activations MB</th><th class="num">Measured peak MB</th></tr>
+    <tr><td>16</td><td class="num">60</td><td class="num">67</td><td class="num">94</td></tr>
+    <tr><td>64</td><td class="num">227</td><td class="num">270</td><td class="num">325</td></tr>
+    <tr class="hl"><td>256</td><td class="num">894</td><td class="num">1,078</td><td class="num">1,165</td></tr>
+  </table>
+  <p class="small mt">Saved activations are counted exactly by autograd hooks; the peak is the process's resident memory, sampled during the step.</p>
+  <aside class="notes"><p>Numbers from the course's run of Lab 2.1 (full mode, four threads, the course laptop). On a GPU the lab reads the framework's own peak counter instead of sampling. Ask the room to explain each gap before showing the next slide.</p></aside>
+</section>
+
+<section class="slide" data-label="The gaps" id="memory-gaps" data-lo="LO3">
+  <div class="kicker">Explain every difference</div>
+  <h2>Each gap between estimate and measurement has a name</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal flat"><h4>Estimate &lt; saved</h4><p class="small mb0">Pooling indices (8-byte integers) and the input batch were not counted.</p></div>
+    <div class="card c-cyan flat"><h4>Saved &lt; peak</h4><p class="small mb0">Gradients of activations and convolution work buffers are alive during the backward pass.</p></div>
+    <div class="card c-coral flat"><h4>Small batches</h4><p class="small mb0">Fixed costs dominate: weights, optimiser state, the allocator's own reserve.</p></div>
+  </div>
+  <div class="callout tip mt"><b>LO3 evidence.</b> The estimate table next to the measured peaks, with each difference explained in a line.</div>
+  <aside class="notes"><p>The goal is not a perfect estimate; it is an estimate whose errors you can name. A gap you cannot explain is a bug or a leak waiting to be found.</p></aside>
+</section>
+
+<section class="slide" data-label="Larger models" id="memory-scaling" data-lo="LO1 LO3">
+  <div class="kicker">The same arithmetic, scaled up</div>
+  <h2>For a language model, the fixed part is the problem before any batch</h2>
+  <table class="t small">
+    <tr><th>Model</th><th class="num">Weights, float32</th><th class="num">+ gradients + AdamW</th></tr>
+    <tr><td>Waraqa, 0.29 M parameters</td><td class="num">1.2 MB</td><td class="num">4.6 MB</td></tr>
+    <tr><td>A 1 B parameter model</td><td class="num">4 GB</td><td class="num">16 GB</td></tr>
+    <tr><td>A 7 B parameter model</td><td class="num">28 GB</td><td class="num">112 GB</td></tr>
+  </table>
+  <p class="small mt">That is why language models are trained in reduced precision with sharded optimiser state, and served with quantised weights (Day 3).</p>
+  <aside class="notes"><p>Pure arithmetic from the rule of thumb, no vendor figures. A farm-office laptop with 8 GB can load a 1 B model's weights in 16-bit for inference, but not train it.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-1" data-lo="LO3">
+  <div class="kicker">Checkpoint</div>
+  <h2>What happens at batch 512?</h2>
+  <div class="quiz" data-type="single" data-lo="LO3">
+    <p class="lead">Waraqa's step peaks at 1,000 MB at batch 256, of which about 10 MB is weights, gradients and optimiser state. Predict the peak at batch 512.</p>
+    <div class="opts">
+      <div class="opt" data-why="Thinks the fixed part dominates; here it is 1% of the total">About 1,010 MB: only the batch's input grows</div>
+      <div class="opt" data-why="Doubles twice, as if memory grew with the square of the batch">About 4,000 MB: memory grows with the square of the batch</div>
+      <div class="opt" data-why="Believes the optimiser state scales with the batch; it scales with the parameters">About 3,000 MB: the optimiser state triples</div>
+      <div class="opt" data-ok>About 2,000 MB: the activations double, the fixed part does not</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Activations are per leaf, so they scale linearly with the batch; parameters, gradients and optimiser state do not depend on it.</div>
+  </div>
+  <aside class="notes"><p>Answer: D. Lab 2.1 ends with this prediction made from the participant's own batch-256 number, then the run.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-2-1" data-auto="lab" data-lab="2.1">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>AI-off for the estimates. Usual problems: counting the optimiser state once instead of twice for AdamW; forgetting the factor of the batch; measuring the first step (the optimiser state does not exist yet). On a GPU the meter reads max_memory_allocated, which excludes the CUDA context: say so when comparing with a neighbour on a CPU.</p></aside>
 </section>
 
-<!-- Session 2 -->
-
+<!-- ======================= SESSION 2 ======================= -->
 <section class="slide section" id="s2" data-auto="section" data-session="2"></section>
 
-<section class="slide" id="s2-idea" data-lo="LO4">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
-  </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+<section class="slide" data-label="Formats" id="number-formats" data-lo="LO4">
+  <div class="kicker">Number formats (recap of AE-202)</div>
+  <h2>Sixteen bits buy half the bytes and give up range or precision</h2>
+  <table class="t small">
+    <tr><th>Format</th><th class="num">Bits</th><th>Exponent / fraction</th><th>Gives up</th></tr>
+    <tr><td>float32</td><td class="num">32</td><td>8 / 23</td><td>nothing: the reference</td></tr>
+    <tr><td>float16</td><td class="num">16</td><td>5 / 10</td><td>range: small gradients underflow to zero</td></tr>
+    <tr class="hl"><td>bfloat16</td><td class="num">16</td><td>8 / 7</td><td>precision: the range of float32, fewer digits</td></tr>
+    <tr><td>int8</td><td class="num">8</td><td>integer with a scale</td><td>both, recovered by calibration (Day 3)</td></tr>
+  </table>
+  <aside class="notes"><p>A one-slide recap: AE-202 introduced number formats. The point for today: fewer bytes per number halve the memory traffic, and speed only comes if the hardware computes in that format.</p></aside>
 </section>
 
-<section class="slide" id="s2-steps" data-lo="LO4">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Autocast" id="autocast" data-lo="LO4">
+  <div class="kicker">Mixed precision</div>
+  <h2>Autocast runs the heavy operations in 16 bits and keeps the rest in 32</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 2.2"><code class="language-python">with torch.autocast("cpu", dtype=torch.bfloat16):
+    out = model(x)                  # convolutions in bfloat16
+    loss = F.cross_entropy(out.float(), y)
+loss.backward()                      # gradients flow back
+opt.step()                           # float32 master weights</code></pre>
+    <ul class="bullets small">
+      <li><b>Mixed</b>: weights and optimiser stay in float32; small updates would vanish in 16 bits.</li>
+      <li>On a CPU, autocast defaults to bfloat16; on a GPU to float16.</li>
+      <li>float16 needs a <b>gradient scaler</b> to keep small gradients from underflowing.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>Sources: PyTorch 2.15 documentation, torch.amp: the default autocast type is bfloat16 on CPU and float16 on CUDA. The gradient scaler multiplies the loss before backward and divides before the step.</p></aside>
+</section>
+
+<section class="slide" data-label="Hardware" id="hardware-support" data-lo="LO4">
+  <div class="kicker">Ask the hardware first</div>
+  <h2>Reduced precision is faster only where the hardware computes in it</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>PyTorch reports the vector extensions it uses: <code>torch.backends.cpu.get_cpu_capability()</code>.</li>
+      <li>The course laptop reports <b>AVX2</b>: no native bfloat16 arithmetic.</li>
+      <li>Without it, bfloat16 numbers are converted to float32 to compute and back: extra work.</li>
+    </ul>
+    <div class="card c-coral"><h4>Predict before you run</h4><p class="small mb0">Write down faster, same or slower. Then measure.</p></div>
+  </div>
+  <aside class="notes"><p>Native bfloat16 on x86 comes with the AVX-512 BF16 or AMX extensions; recent GPUs and many neural accelerators have it. Do not quote which processor has what: ask participants to run the cell.</p></aside>
+</section>
+
+<section class="slide" data-label="The result" id="precision-result" data-lo="LO4">
+  <div class="kicker">Measured in Lab 2.2: 12 steps of 64 leaves from the warm-start checkpoint</div>
+  <h2>On a processor without native bfloat16, autocast made each step 24 times slower, at the same accuracy</h2>
+  <table class="t">
+    <tr><th>Setting</th><th class="num">ms per step</th><th class="num">Leaves per s</th><th class="num">Peak MB</th><th class="num">Val accuracy</th></tr>
+    <tr><td>float32</td><td class="num">929</td><td class="num">69</td><td class="num">324</td><td class="num">0.777</td></tr>
+    <tr class="hl"><td>bfloat16 autocast</td><td class="num">22,252</td><td class="num">3</td><td class="num">280</td><td class="num">0.776</td></tr>
+  </table>
+  <p class="small mt">The blog post's "twice as fast" may hold on its hardware. On this one, the measurement decides.</p>
+  <aside class="notes"><p>Numbers from the course's run of Lab 2.2 in full mode on the course laptop. Validation accuracy on 2,000 leaves: one leaf is 0.05 points, so a difference of a few leaves is noise. Participants with a Colab GPU can run the float16 stretch and see the other side of the story.</p></aside>
+</section>
+
+<section class="slide" data-label="Claims" id="claims-and-hardware" data-lo="LO4">
+  <div class="kicker">Reading a speed-up claim</div>
+  <h2>A speed-up without its hardware, settings and quality is not a result</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>Hardware</b>which processor, which extensions</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>Settings</b>batch, threads, what was measured</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>Both sides</b>the same steps, the same data</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>Quality</b>accuracy after, on the same set</div>
+  </div>
+  <aside class="notes"><p>This is the frame for every claim this week, including the participants' own in the capstone. Ask: which of the four does the blog post give?</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-2" data-lo="LO4">
+  <div class="kicker">Checkpoint</div>
+  <h2>Why did bfloat16 not help here?</h2>
+  <div class="quiz" data-type="single" data-lo="LO4">
+    <p class="lead">On a laptop whose processor reports AVX2 only, bfloat16 autocast made Waraqa's training step slower with the same accuracy. What is the best explanation?</p>
+    <div class="opts">
+      <div class="opt" data-why="Blames the model's size; the cost comes from converting formats, whatever the size">The model is too small to benefit from any optimisation</div>
+      <div class="opt" data-why="Confuses precision with correctness; accuracy was the same">bfloat16 lost precision, so the step had to do more work</div>
+      <div class="opt" data-ok>The processor has no native bfloat16 arithmetic, so each operation pays for conversions</div>
+      <div class="opt" data-why="Thinks autocast also changes the optimiser; the weights stay in float32">The optimiser now runs in bfloat16 and needs more steps</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Without native support the lower precision is emulated: numbers are converted to float32 to compute and back, which adds work instead of saving it.</div>
+  </div>
+  <aside class="notes"><p>Answer: C. Then ask what bfloat16 still buys on such a machine: memory for activations it stores in 16 bits.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-2-2" data-auto="lab" data-lab="2.2">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>Both runs start from waraqa_warm.pt (one epoch of training), so they finish in minutes and accuracy has room to move. Usual problems: comparing runs with different seeds or batches; including the first two steps; evaluating the bfloat16 model inside autocast. In Colab with a GPU, the stretch shows float16 with a gradient scaler.</p></aside>
 </section>
 
-<!-- Session 3 -->
-
+<!-- ======================= SESSION 3 ======================= -->
 <section class="slide section" id="s3" data-auto="section" data-session="3"></section>
 
-<section class="slide" id="s3-idea" data-lo="LO3">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
+<section class="slide" data-label="Effective batch" id="effective-batch" data-lo="LO3 LO4">
+  <div class="kicker">The problem</div>
+  <h2>Lina's recipe needs an effective batch of 256; the budget allows 400 MB</h2>
   <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
+    <div class="stat"><div class="big">1,174 MB</div><div class="lbl">measured peak of one batch of 256 (Lab 2.3)</div></div>
+    <ul class="bullets small">
+      <li>Mutaib's rule: monthly retraining on a farm-office laptop may use at most 400 MB above the process at rest.</li>
+      <li>The learning rate and schedule were tuned for 256: a smaller batch changes training.</li>
+      <li>Two ways to keep 256: accumulate, or recompute.</li>
     </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <aside class="notes"><p>Number from the course's run of Lab 2.3. The budget is the case's assumption, chosen so that the plain batch does not fit.</p></aside>
 </section>
 
-<section class="slide" id="s3-steps" data-lo="LO3">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Accumulation" id="gradient-accumulation" data-lo="LO3 LO4">
+  <div class="kicker">Gradient accumulation</div>
+  <h2>Four micro-batches of 64, one optimiser step</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 2.3"><code class="language-python">for xm, ym in zip(x.chunk(4), y.chunk(4)):
+    loss = F.cross_entropy(model(xm), ym) / 4
+    loss.backward()        # gradients add up in .grad
+opt.step()
+opt.zero_grad()</code></pre>
+    <ul class="bullets small">
+      <li>Divide each loss by the number of micro-batches: the sum is the mean over 256.</li>
+      <li>Activations of one micro-batch at a time: about a quarter of the memory.</li>
+      <li>Costs time: four smaller calls do less work in parallel.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>A common bug: forgetting the division, which makes every step four times too large. Another: calling zero_grad inside the loop.</p></aside>
+</section>
+
+<section class="slide" data-label="Same gradient?" id="same-gradient" data-lo="LO4">
+  <div class="kicker">Checked in Lab 2.3</div>
+  <h2>Accumulation equals a large batch only for layers that treat each example alone</h2>
+  <table class="t">
+    <tr><th>Batch norm mode</th><th class="num">Largest relative gradient difference</th></tr>
+    <tr><td>Evaluation (stored statistics)</td><td class="num">3.8e-05</td></tr>
+    <tr class="hl"><td>Training (statistics per batch)</td><td class="num">1.2</td></tr>
+  </table>
+  <p class="small mt">With batch norm, each micro-batch is normalised by its own statistics. It usually trains fine; it is not the same computation.</p>
+  <aside class="notes"><p>Evaluation mode proves the arithmetic is right (rounding only); training mode shows the honest difference. Layer norm and group norm do not have this issue: they normalise each example on its own.</p></aside>
+</section>
+
+<section class="slide" data-label="Checkpointing" id="activation-checkpointing" data-lo="LO3 LO4">
+  <div class="kicker">Activation checkpointing</div>
+  <h2>Keep a few activations, recompute the rest during the backward pass</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 2.3"><code class="language-python">from torch.utils.checkpoint import checkpoint_sequential
+feats = checkpoint_sequential(model.features, 4, x,
+                              use_reentrant=False)
+logits = model.head(feats.mean(dim=(2, 3)))</code></pre>
+    <ul class="bullets small">
+      <li>Only the boundaries of 4 segments are kept; each segment's inside is recomputed when its gradient is needed.</li>
+      <li>Trades about one extra forward pass for memory.</li>
+      <li>The idea is from Chen et al., 2016: memory that grows more slowly than depth.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Sources: Chen, Xu, Zhang and Guestrin, Training deep nets with sublinear memory cost (arXiv 1604.06174); PyTorch 2.15 torch.utils.checkpoint. use_reentrant=False is the recommended variant in current PyTorch.</p></aside>
+</section>
+
+<section class="slide" data-label="Fits?" id="fit-table" data-lo="LO3 LO4">
+  <div class="kicker">Measured in Lab 2.3, budget 400 MB</div>
+  <h2>Accumulation fits; checkpointing cuts memory, not enough here</h2>
+  <table class="t">
+    <tr><th>Method</th><th class="num">Peak MB</th><th>Fits</th><th class="num">s per step</th><th class="num">Time</th></tr>
+    <tr><td>One batch of 256</td><td class="num">1,174</td><td>no</td><td class="num">3.63</td><td class="num">1.00x</td></tr>
+    <tr class="hl"><td>Accumulation, 4 x 64</td><td class="num">319</td><td>yes</td><td class="num">3.67</td><td class="num">1.01x</td></tr>
+    <tr><td>Checkpointing, 4 segments, 256</td><td class="num">807</td><td>no</td><td class="num">4.62</td><td class="num">1.27x</td></tr>
+  </table>
+  <aside class="notes"><p>Numbers from the course's run of Lab 2.3. Checkpointing still has to recompute the first segment, and the first block alone holds three 256 x 32 x 64 x 64 float tensors (about 134 MB each), so no number of segments brings batch 256 under 400 MB. Ask which they would choose for the monthly retraining: here accumulation; on a GPU with little memory and a deep network the two are combined.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-3" data-lo="LO3">
+  <div class="kicker">Checkpoint</div>
+  <h2>What does activation checkpointing reduce?</h2>
+  <div class="quiz" data-type="single" data-lo="LO3">
+    <p class="lead">A language model of 2 B parameters does not fit for training on a 24 GB GPU even at batch 1. Will activation checkpointing make it fit?</p>
+    <div class="opts">
+      <div class="opt" data-ok>Unlikely: weights, gradients and AdamW state already need about 32 GB, which checkpointing does not touch</div>
+      <div class="opt" data-why="Thinks checkpointing reduces every part of memory; it only touches activations">Yes: checkpointing reduces all training memory</div>
+      <div class="opt" data-why="Thinks accumulation reduces weights or optimiser state; it only splits the batch">Not alone, but gradient accumulation will</div>
+      <div class="opt" data-why="Confuses checkpointing activations with saving the model to disk">Yes, if the checkpoints are written to disk</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Checkpointing and accumulation both cut activation memory only; the 16 bytes per parameter of float32 AdamW stay.</div>
+  </div>
+  <aside class="notes"><p>Answer: A. What would help: lower precision for weights and optimiser state, an 8-bit optimiser, or sharding across devices (beyond one machine, AE-401).</p></aside>
 </section>
 
 <section class="slide lab" id="lab-2-3" data-auto="lab" data-lab="2.3">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>Usual problems: forgetting to divide the micro-batch loss; comparing gradients in training mode and concluding the code is wrong; checkpointing with use_reentrant=True and an input that does not require grad (the gradients silently vanish). Peak memory is sampled: run each measurement twice.</p></aside>
 </section>
 
-<!-- Session 4 -->
-
+<!-- ======================= SESSION 4 ======================= -->
 <section class="slide section" id="s4" data-auto="section" data-session="4"></section>
 
-<section class="slide" id="s4-idea" data-lo="LO4">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+<section class="slide" data-label="Fusion" id="why-fusion" data-lo="LO4">
+  <div class="kicker">Operator fusion</div>
+  <h2>Separate operations read and write the whole activation each time</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>Convolution</b>writes z</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>Batch norm</b>reads z, writes y</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>ReLU</b>reads y, writes y</div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <div class="callout tip mt"><b>Fused.</b> One kernel computes the convolution, the affine map and the ReLU while the data is still in cache: one write instead of three.</div>
+  <aside class="notes"><p>Batch norm and ReLU are elementwise, so memory-bound (Lab 1.1's layer B): fusing them into the convolution removes their memory traffic.</p></aside>
 </section>
 
-<section class="slide" id="s4-steps" data-lo="LO4">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Folding" id="fold-batch-norm" data-lo="LO4">
+  <div class="kicker">One fusion by hand</div>
+  <h2>At inference, batch norm folds into the convolution's weights</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 2.4"><code class="language-python">s = bn.weight / torch.sqrt(bn.running_var + bn.eps)
+W_new = conv.weight * s.reshape(-1, 1, 1, 1)
+b_new = bn.bias - bn.running_mean * s</code></pre>
+    <ul class="bullets small">
+      <li>At inference batch norm is a fixed affine map per channel; a convolution is linear: the two combine.</li>
+      <li>Not during training: the statistics change every batch.</li>
+      <li>Outputs agree to rounding: largest logit difference 5.7e-06 in Lab 2.4.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>AI-off for the formula. Derive it on the board: y = gamma (Wx - mean) / sqrt(var + eps) + beta. Runtimes do this automatically (Day 4's ONNX Runtime does); doing it once by hand shows what "fusion" means.</p></aside>
+</section>
+
+<section class="slide" data-label="Compilers" id="compilers" data-lo="LO4">
+  <div class="kicker">Compilation</div>
+  <h2>A compiler captures the graph, fuses operations and generates code once</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li><code>torch.compile(model)</code>: capture on the first call, then reuse the generated code.</li>
+      <li>Its default backend generates C++ for processors: it needs a C++ compiler.</li>
+      <li>Colab, Linux and macOS usually have one; the course's Windows laptop did not.</li>
+    </ul>
+    <div class="card c-coral"><h4>Two numbers, always</h4><p class="small mb0">The first-call cost (capture and code generation) and the steady-state speed per call.</p></div>
+  </div>
+  <aside class="notes"><p>Sources: PyTorch 2.15 torch.compile documentation. On the build laptop, torch.compile failed with "cl is not found": the Windows C++ compiler was not installed. The lab falls back to the aot_eager backend, which captures the graph without generating code, and says so. Run the lab in Colab to see the inductor backend.</p></aside>
+</section>
+
+<section class="slide" data-label="Measured" id="compile-result" data-lo="LO4">
+  <div class="kicker">Measured in Lab 2.4: inference, batch 32</div>
+  <h2>Folding batch norm bought 6%; compiling bought nothing here, after a 13-second first call</h2>
+  <table class="t small">
+    <tr><th>Setting</th><th class="num">ms per batch</th><th class="num">Leaves per s</th><th class="num">Accuracy</th></tr>
+    <tr><td>Eager</td><td class="num">130.3</td><td class="num">246</td><td class="num">99.1%</td></tr>
+    <tr class="hl"><td>Batch norm folded</td><td class="num">122.3</td><td class="num">262</td><td class="num">99.1%</td></tr>
+    <tr><td>Folded and compiled (aot_eager)</td><td class="num">135.0</td><td class="num">237</td><td class="num">99.1%</td></tr>
+  </table>
+  <p class="small mt">First call with compilation: 13.0 s (backend aot_eager).</p>
+  <aside class="notes"><p>Numbers from the course's run on the course laptop. With the aot_eager fallback no fused code is generated, so no steady-state gain is expected: that is a statement about the machine, not about compilers. Ask when a 10-second first call is worth a 1 ms gain: after 10,000 calls in one process.</p></aside>
+</section>
+
+<section class="slide" data-label="LO4 table" id="lo4-results" data-lo="LO4">
+  <div class="kicker">The day's evidence</div>
+  <h2>One table: time, throughput, peak memory and accuracy per setting</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>Training rows: float32, bfloat16 autocast, accumulation, checkpointing.</li>
+      <li>Inference rows: eager, batch norm folded, compiled.</li>
+      <li>Each row names its machine, batch and threads.</li>
+    </ul>
+    <div class="card c-teal"><h4>LO4 evidence</h4><p class="small mb0">A results table with time per step, throughput, peak memory and accuracy for each setting.</p></div>
+  </div>
+  <aside class="notes"><p>Lab 2.4's last step prints this table, with the training rows supplied from the course's runs so that nobody depends on an earlier lab. Participants replace them with their own numbers if they have them.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-4" data-lo="LO4">
+  <div class="kicker">Checkpoint</div>
+  <h2>Is compilation worth it here?</h2>
+  <div class="quiz" data-type="single" data-lo="LO4">
+    <p class="lead">Compiling Waraqa costs 20 s on the first call and saves 2 ms per batch. The field app starts, classifies about 50 leaves, and closes. Should it compile at start-up?</p>
+    <div class="opts">
+      <div class="opt" data-why="Looks at the per-call gain alone and ignores who pays the first call">Yes: 2 ms per batch is a 20% gain</div>
+      <div class="opt" data-ok>No: 50 leaves save well under a second, and the agent waits 20 s at every start</div>
+      <div class="opt" data-why="Thinks compilation changes the model's accuracy; fused code computes the same function">No: compilation lowers accuracy</div>
+      <div class="opt" data-why="Assumes the gain grows with time; it is per call and the app makes few calls">Yes: the gain grows the longer the laptop runs</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> The first call is repaid only after about 10,000 batches in one process; a short-lived app never gets there. A long-running service, or a cached compiled artefact, does.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. This is why Day 4 exports to a runtime file: the optimisation is done once, ahead of time, and every start is fast.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-2-4" data-auto="lab" data-lab="2.4">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>AI-off for the folding formula. If compilation fails on a laptop, the lab falls back and labels the result; encourage those participants to repeat step 4 in Colab. Usual problems: folding a convolution that has its own bias (Waraqa's have none); checking parity on one leaf only; timing the first compiled call as steady state.</p></aside>
 </section>
 
-<section class="slide" id="wrap-up">
-  <div class="kicker">Day 2 · wrap-up</div>
-  <h2>Three things to keep</h2>
+<!-- ======================= CLOSING ======================= -->
+<section class="slide" data-label="Recap" id="day-2-recap">
+  <div class="kicker">Day 2 recap</div>
+  <h2>Three things to keep from Day 2</h2>
   <div class="cols cols-3">
-    <div class="card c-teal"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-coral"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-purple"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
+    <div class="card c-teal"><h4>Estimate, then measure</h4><p class="small mb0">16 bytes per parameter plus activations that scale with the batch; name every gap.</p></div>
+    <div class="card c-cyan"><h4>Hardware decides</h4><p class="small mb0">Reduced precision and compilers help where the machine supports them. Measure on yours.</p></div>
+    <div class="card c-coral"><h4>Memory for time</h4><p class="small mb0">Accumulation and checkpointing fit a batch into a budget and pay in time.</p></div>
   </div>
+  <aside class="notes"><p>Ask which row of today's table surprised them most, and why.</p></aside>
 </section>
 
-<section class="slide dark" id="next" data-label="Next">
-  <div class="kicker">Next</div>
-  <h2>Day 3: Inference and compression</h2>
-  <p class="lead">REPLACE: what participants prepare before then; unfinished labs can be finished at home</p>
-  <aside class="notes">REPLACE: accounts, installs or reading participants need before the next unit</aside>
+<section class="slide dark" data-label="Tomorrow" id="tomorrow-inference">
+  <div class="kicker">Tomorrow · Day 3</div>
+  <h2>Inference and compression</h2>
+  <p class="lead">Tomorrow you serve Waraqa at batch sizes from 1 to 64, run Hasad on the laptop and size its key-value cache, decide which farmer questions may leave the device, then quantise and prune both models and measure what each change costs in quality.</p>
+  <aside class="notes"><p>Every Day 3 lab starts from the supplied model files. Remind participants of the budget: per leaf, in the office, at the 95th percentile.</p></aside>
 </section>
