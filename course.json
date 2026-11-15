@@ -894,5 +894,143 @@
         "NumPy"
       ]
     }
+  ],
+  "sources": [
+    {
+      "group": "Performance models and measurement",
+      "items": [
+        {
+          "title": "Williams, Waterman and Patterson: Roofline, an insightful visual performance model (UC Berkeley technical report, 2008)",
+          "url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.html"
+        },
+        {
+          "title": "Machine Learning Systems, the open textbook, with MLSys·im",
+          "url": "https://mlsysbook.ai/"
+        },
+        {
+          "title": "PyTorch 2.15: torch.profiler",
+          "url": "https://docs.pytorch.org/docs/2.15/profiler.html"
+        },
+        {
+          "title": "PyTorch recipe: benchmarking with torch.utils.benchmark",
+          "url": "https://docs.pytorch.org/tutorials/recipes/recipes/benchmark.html"
+        },
+        {
+          "title": "py-spy, a sampling profiler for Python",
+          "url": "https://github.com/benfred/py-spy"
+        },
+        {
+          "title": "Scalene, a CPU, GPU and memory profiler for Python",
+          "url": "https://github.com/plasma-umass/scalene"
+        },
+        {
+          "title": "memray, a memory profiler for Python (Linux and macOS)",
+          "url": "https://github.com/bloomberg/memray"
+        },
+        {
+          "title": "JAX documentation: profiling computation",
+          "url": "https://docs.jax.dev/en/latest/profiling.html"
+        },
+        {
+          "title": "hyperfine, a command-line benchmarking tool",
+          "url": "https://github.com/sharkdp/hyperfine"
+        },
+        {
+          "title": "pytest-benchmark documentation",
+          "url": "https://pytest-benchmark.readthedocs.io/"
+        }
+      ]
+    },
+    {
+      "group": "Training efficiently",
+      "items": [
+        {
+          "title": "PyTorch 2.15: datasets and data loaders (torch.utils.data)",
+          "url": "https://docs.pytorch.org/docs/2.15/data.html"
+        },
+        {
+          "title": "PyTorch 2.15: automatic mixed precision (torch.amp)",
+          "url": "https://docs.pytorch.org/docs/2.15/amp.html"
+        },
+        {
+          "title": "PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)",
+          "url": "https://docs.pytorch.org/docs/2.15/checkpoint.html"
+        },
+        {
+          "title": "PyTorch 2.15: torch.compile",
+          "url": "https://docs.pytorch.org/docs/2.15/generated/torch.compile.html"
+        },
+        {
+          "title": "PyTorch 2.15: torch.backends",
+          "url": "https://docs.pytorch.org/docs/2.15/backends.html"
+        },
+        {
+          "title": "Chen, Xu, Zhang and Guestrin: Training deep nets with sublinear memory cost (2016)",
+          "url": "https://arxiv.org/abs/1604.06174"
+        }
+      ]
+    },
+    {
+      "group": "Inference, compression and export",
+      "items": [
+        {
+          "title": "Kwon et al.: Efficient memory management for large language model serving with PagedAttention (2023)",
+          "url": "https://arxiv.org/abs/2309.06180"
+        },
+        {
+          "title": "Han, Mao and Dally: Deep compression (2015)",
+          "url": "https://arxiv.org/abs/1510.00149"
+        },
+        {
+          "title": "Hinton, Vinyals and Dean: Distilling the knowledge in a neural network (2015)",
+          "url": "https://arxiv.org/abs/1503.02531"
+        },
+        {
+          "title": "ONNX Runtime: quantising ONNX models",
+          "url": "https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html"
+        },
+        {
+          "title": "ONNX Runtime: graph optimisations",
+          "url": "https://onnxruntime.ai/docs/performance/model-optimizations/graph-optimizations.html"
+        },
+        {
+          "title": "PyTorch 2.15: torch.onnx",
+          "url": "https://docs.pytorch.org/docs/2.15/onnx.html"
+        },
+        {
+          "title": "ExecuTorch: on-device AI for PyTorch",
+          "url": "https://github.com/pytorch/executorch"
+        },
+        {
+          "title": "LiteRT (Google AI Edge)",
+          "url": "https://ai.google.dev/edge/litert"
+        },
+        {
+          "title": "llama.cpp",
+          "url": "https://github.com/ggml-org/llama.cpp"
+        },
+        {
+          "title": "llama.cpp: quantize tool and quantisation types",
+          "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md"
+        },
+        {
+          "title": "Ollama",
+          "url": "https://ollama.com/"
+        }
+      ]
+    },
+    {
+      "group": "National references",
+      "items": [
+        {
+          "title": "SDAIA: AI Ethics Principles",
+          "url": "https://sdaia.gov.sa/en/SDAIA/about/Documents/ai-principles.pdf"
+        },
+        {
+          "title": "National Data Management Office (SDAIA): Data Classification Policy",
+          "url": "https://sdaia.gov.sa/en/SDAIA/about/Documents/DataClassificationPolicy.pdf"
+        }
+      ]
+    }
   ]
 }

@@ -1,0 +1,8 @@
+{
+  "p95_ms_max": 15,
+  "file_mb_max": 1.0,
+  "peak_mb_max": 150,
+  "quality_floor_overall": 0.01,
+  "quality_floor_per_crop": 0.02,
+  "how_measured": "batch 1, four threads, one leaf per call; peak memory of the whole serving process; quality as the paired difference against the 32-bit model on the 2,000 held-out leaves"
+}

@@ -1,158 +1,502 @@
+<!-- ======================= OPENING ======================= -->
 <section class="slide title" id="title" data-auto="title">
-  <aside class="notes">REPLACE: welcome; introduce yourself; one question to the room that calibrates the pace; the rhythm of the day</aside>
+  <aside class="notes"><p>Welcome the room. Quick poll: who has trained a network with a hand-written loop (the AE-202 prerequisite)? Who has ever made code faster and been wrong about why? This course has one rule, said on every day: measure before you change anything, and measure again after. Day 1 changes almost nothing: it measures.</p></aside>
+</section>
+
+<section class="slide" data-label="The week" id="four-days-one-machine">
+  <div class="kicker">The course at a glance</div>
+  <h2>Four days on one laptop, from raw data to a served prediction</h2>
+  <div class="cols cols-4 gap-s">
+    <div class="card c-teal"><h4>Day 1 · Measure first</h4><p class="small mb0">The machine's limits, timers, profilers, an input-bound pipeline.</p></div>
+    <div class="card c-cyan"><h4>Day 2 · Memory and training</h4><p class="small mb0">Where memory goes, mixed precision, accumulation, checkpointing, compilation.</p></div>
+    <div class="card c-coral"><h4>Day 3 · Inference and compression</h4><p class="small mb0">Batching, a language model on a laptop, quantisation, pruning.</p></div>
+    <div class="card c-purple"><h4>Day 4 · Export and benchmark</h4><p class="small mb0">A portable runtime, a benchmark you can trust, quality by group, a budget.</p></div>
+  </div>
+  <div class="callout tip mt"><b>Day 5 · Capstone.</b> An optimisation study on a model you choose, in a public repository, defended in eight minutes with a live re-run of your benchmark.</div>
+  <aside class="notes"><p>One sentence per day. Name the five capstone criteria (baseline profile 20, changes ordered by measured impact 25, quality re-evaluation 20, benchmark method 20, reproducibility 15) and say that each day builds one of them. Assessment: a supervised entry quiz and exit check without AI (20%), the capstone repository (60%), the live defence (20%); passing is 70% overall with at least 60% on the rubric and on the supervised check.</p></aside>
+</section>
+
+<section class="slide" data-label="Case study" id="nama-agritech">
+  <div class="kicker">One case study all week</div>
+  <h2>Nama Agritech: two models on old farm-office laptops</h2>
+  <p class="lead">A fictional farm-advisory company. Its agents visit farms with a laptop that is several years old, often offline.</p>
+  <div class="cols cols-3 gap-s mt-s">
+    <div class="card c-teal flat"><h4>Waraqa <span class="ar">ورقة</span></h4><p class="small mb0">Classifies a photographed leaf into healthy or one of nine diseases, on tomato, cucumber, citrus and date palm.</p></div>
+    <div class="card c-cyan flat"><h4>Hasad <span class="ar">حصاد</span></h4><p class="small mb0">A small language model that answers farmers' questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English.</p></div>
+    <div class="card c-coral flat"><h4>The budget</h4><p class="small mb0">Fast enough per leaf, small enough to ship, light on memory, and no quality lost where farmers would notice.</p></div>
+  </div>
+  <aside class="notes"><p>The people: Ghadeer Al-Shammasi, head of advisory products, sets the budget; Lina Al-Mohaisen, machine learning engineer, wrote the training script you profile today; Mutaib Al-Dhafeeri, field support lead, owns the laptops; Reham Al-Barakati, data protection officer, decides which questions may leave a laptop (Day 3). Participants play Ayman Al-Shahri, the performance engineer. All data is synthetic and generated with a fixed seed: 20,000 leaf images and 2,000 farmer questions. Both models were trained by the course and ship in the repository: nothing is downloaded.</p></aside>
+</section>
+
+<section class="slide" data-label="Setup" id="setup-check">
+  <div class="kicker">Before Session 1</div>
+  <h2>Run the setup check now: it builds the data and loads both models</h2>
+  <div class="cols cols-2">
+    <ol class="bullets small">
+      <li>Colab: open <code>00_setup_check.ipynb</code> from the course page and run all cells.</li>
+      <li>Laptop: <code>git clone</code> the course, then in <code>labs/</code> run <code>uv sync</code> and <code>uv run jupyter lab</code>.</li>
+      <li>The check prints your processor, threads and memory, builds the held-out leaves and answers one farmer question.</li>
+      <li>Its last line says whether this machine can compile models (Lab 2.4).</li>
+    </ol>
+    <div class="stack">
+      <div class="card c-teal flat"><h4>Quick mode</h4><p class="small mb0">Set <code>NAMA_QUICK=1</code> for smaller runs. Every solution finishes in minutes on a laptop processor.</p></div>
+      <div class="card c-coral flat"><h4>Write down your machine</h4><p class="small mb0">Every number this week is a number on a machine.</p></div>
+    </div>
+  </div>
+  <aside class="notes"><p>Make everyone run it before Session 1 reaches its lab. Common failures: "filename too long" on Windows (set UV_PROJECT_ENVIRONMENT to a short folder before uv sync, see labs/README.md); a laptop on battery saver (plug it in: timings halve); a corporate proxy blocking the package index (use Colab). The data build takes about a minute; it is cached in labs/cache.</p></aside>
 </section>
 
 <section class="slide" id="agenda" data-auto="agenda"></section>
 
-<!-- Session 1 -->
-
+<!-- ======================= SESSION 1 ======================= -->
 <section class="slide section" id="s1" data-auto="section" data-session="1"></section>
 
-<section class="slide" id="s1-idea" data-lo="LO1">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+<section class="slide" data-label="Three limits" id="three-limits" data-lo="LO1">
+  <div class="kicker">What can make a step slow</div>
+  <h2>Every step is limited by compute, memory capacity or memory bandwidth</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal"><h4>Compute</h4><p class="small mb0">Floating-point operations per second the processor can do. A large matrix product runs into this roof.</p></div>
+    <div class="card c-cyan"><h4>Capacity</h4><p class="small mb0">Bytes that fit at all. Too many and the run fails, or spills to slower memory. Day 2 is about this one.</p></div>
+    <div class="card c-coral"><h4>Bandwidth</h4><p class="small mb0">Bytes per second between memory and the cores. Elementwise layers and decoding one token at a time run into this roof.</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <div class="callout warn mt"><b>What goes wrong.</b> Optimising the limit that does not bind. Fewer FLOPs do not help a step that waits for memory.</div>
+  <aside class="notes"><p>Ask the room for an example of each from their own work: an out-of-memory error is capacity; a GPU at 20% utilisation is often bandwidth or input. The rest of today puts numbers on the laptop's two rates, compute and bandwidth.</p></aside>
 </section>
 
-<section class="slide" id="s1-steps" data-lo="LO1">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Count first" id="count-flops-bytes" data-lo="LO1">
+  <div class="kicker">Before any timer</div>
+  <h2>Count FLOPs and bytes by hand: it takes two lines</h2>
+  <table class="t small">
+    <tr><th>Layer</th><th>FLOPs</th><th>Bytes moved (float32)</th><th class="num">Intensity</th></tr>
+    <tr><td>A · fully connected, batch 512, 1,024 to 1,024</td><td>2 x 512 x 1,024 x 1,024 = 1.07 G</td><td>4 x (input + weight + output) = 8.4 MB</td><td class="num">128 FLOP/byte</td></tr>
+    <tr><td>B · add a bias, then ReLU, on 4,096 x 4,096</td><td>2 per element = 0.034 G</td><td>read and write each element = 134 MB</td><td class="num">0.25 FLOP/byte</td></tr>
+  </table>
+  <p class="small mt">Arithmetic intensity = FLOPs divided by bytes moved. It is a property of the layer, not of the machine.</p>
+  <aside class="notes"><p>Work layer A on the board before showing the row: one multiply and one add per weight per row of the batch. Then ask the room to do B themselves. These are the two layers of Lab 1.1, and the estimates are AI-off.</p></aside>
+</section>
+
+<section class="slide" data-label="Roofline" id="roofline-rule" data-lo="LO1">
+  <div class="kicker">The roofline idea</div>
+  <h2>Attainable speed is the lower of two roofs</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="card c-navy"><h4>attainable = min(peak, intensity x bandwidth)</h4><p class="small mb0">Below the ridge point a layer waits for memory; above it, for arithmetic.</p></div>
+      <div class="card c-teal flat"><h4>Ridge point = peak / bandwidth</h4><p class="small mb0">The intensity at which the two roofs meet.</p></div>
+    </div>
+    <ul class="bullets small">
+      <li>A <b>floor on time</b>, never a promise: real layers sit under their roof.</li>
+      <li>It tells you <b>which roof</b> to push: fewer bytes or fewer FLOPs.</li>
+      <li>Batching raises intensity: the weights are read once for more rows.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>The model is from Williams, Waterman and Patterson's 2008 Berkeley report. Draw it on the board with log axes: a sloped line (bandwidth) that meets a flat line (peak). Sources: Roofline technical report, EECS-2008-134.</p></aside>
+</section>
+
+<section class="slide" data-label="This laptop" id="this-laptop" data-lo="LO1">
+  <div class="kicker">Measured in Lab 1.1 on the course's laptop</div>
+  <h2>A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">138</div><div class="lbl">GFLOP/s, a 2,048-square matrix product, 4 threads</div></div>
+    <div class="stat"><div class="big">33.7</div><div class="lbl">GB/s, a 256 MB copy</div></div>
+    <div class="stat"><div class="big">4.1</div><div class="lbl">FLOP per byte at the ridge</div></div>
+  </div>
+  <p class="small mt">Layer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a roof of 7.8 ms; B 6.9 ms against 4.0 ms.</p>
+  <aside class="notes"><p>Numbers from the course's run of Lab 1.1 in full mode on an Intel Core Ultra 7 265U laptop under Windows, four threads, with other programs running. Yours will differ: that is the point of measuring. The gap between measured and roof is normal; ask what the roof leaves out (call overhead, threads waiting, cache misses).</p></aside>
+</section>
+
+<section class="slide" data-label="Caches" id="caches-and-reuse" data-lo="LO1">
+  <div class="kicker">Caches and data movement</div>
+  <h2>Data reused close to the cores is cheap; data fetched from main memory is not</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>Registers</b>a few hundred bytes per core</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>L1 and L2 caches</b>tens of kilobytes to a few megabytes</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>Last-level cache</b>megabytes, shared</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>Main memory</b>gigabytes, the bandwidth you measured</div>
+  </div>
+  <div class="callout tip mt"><b>Why the matrix product is fast.</b> It works on tiles that stay in cache and reuses each number many times. The 256 MB copy cannot: it reads everything once.</div>
+  <aside class="notes"><p>Keep the sizes as orders of magnitude; exact figures depend on the processor generation and change every year. The lesson that lasts: an operation's speed depends on how often it reuses what it loaded. Fusion (Day 2) and batching (Day 3) are both ways to reuse data.</p></aside>
+</section>
+
+<section class="slide" data-label="Processors" id="cpu-gpu-npu" data-lo="LO1">
+  <div class="kicker">CPUs, GPUs and neural accelerators</div>
+  <h2>Each processor trades generality for throughput on dense arithmetic</h2>
+  <div class="cols cols-3">
+    <div class="card c-navy flat"><h4>CPU</h4><p class="small mb0">Few strong cores with wide vector units. Good at branches, small batches and everything around the model.</p></div>
+    <div class="card c-teal flat"><h4>GPU</h4><p class="small mb0">Thousands of simple lanes and very high memory bandwidth. Needs large, regular work to stay busy.</p></div>
+    <div class="card c-purple flat"><h4>Neural accelerator</h4><p class="small mb0">Fixed-function units for matrix products in low precision, on many new laptops and phones. Needs a runtime that supports it.</p></div>
+  </div>
+  <div class="callout note mt"><b>Same roofline, different numbers.</b> Each has its own peak and bandwidth, so the same layer can bind differently on each.</div>
+  <aside class="notes"><p>Nama's laptops are processor-only, which is why the course measures on CPUs. The free Colab GPU is optional; on Day 2 participants who try it will see mixed precision behave very differently. Hardware figures go stale fast: keep them off slides and measure.</p></aside>
+</section>
+
+<section class="slide" data-label="Estimate first" id="analytical-model" data-lo="LO1">
+  <div class="kicker">Pre-work, used today</div>
+  <h2>An analytical model gives the first estimate; the measurement checks it</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>Pre-work: a roofline estimate for four workloads, by hand or with a spreadsheet.</li>
+      <li><b>MLSys·im</b>, from the open Machine Learning Systems textbook, models training and inference analytically.</li>
+      <li>An estimate within a factor of two is useful: it says which limit to look at.</li>
+    </ul>
+    <div class="card c-teal"><h4>LO1 evidence</h4><p class="small mb0">A worked estimate for each of four workloads that matches the reference within a stated margin, done without AI in the supervised check.</p></div>
+  </div>
+  <aside class="notes"><p>Collect the pre-work now and pick one participant's estimate to discuss. Sources: Machine Learning Systems textbook and MLSys·im (mlsysbook.ai). The supervised entry quiz and exit check include such estimates by hand, AI-off.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-1" data-lo="LO1">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which layer gets faster with fewer FLOPs?</h2>
+  <div class="quiz" data-type="single" data-lo="LO1">
+    <p class="lead">On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most?</p>
+    <div class="opts">
+      <div class="opt" data-ok>A matrix product with an intensity of 120 FLOP per byte</div>
+      <div class="opt" data-why="Thinks fewer FLOPs always help: this layer waits for memory, so its time hardly moves">An elementwise ReLU with an intensity of 0.25 FLOP per byte</div>
+      <div class="opt" data-why="Confuses the ridge point with the best place to be: at the ridge both roofs bind, so halving FLOPs leaves the memory roof">A layer sitting exactly at the ridge point</div>
+      <div class="opt" data-why="Assumes time is FLOPs divided by peak for every layer, ignoring the bandwidth roof">All three equally, since time is FLOPs over peak</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Only a compute-bound layer, far above the ridge, spends its time on arithmetic; halving its FLOPs nearly halves its time.</div>
+  </div>
+  <aside class="notes"><p>Answer: A. If many pick "all three", go back to the roofline slide and place each layer on it.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-1-1" data-auto="lab" data-lab="1.1">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>AI-off for the estimates of task 3. Ask participants to close heavy programs. Usual problems: forgetting that a copy moves bytes twice (read and write); reading the first, cold timing; comparing their laptop's numbers with a neighbour's instead of with their own roof. In Colab the CPU runtime has two cores: the numbers are much lower, and that is fine.</p></aside>
 </section>
 
-<!-- Session 2 -->
-
+<!-- ======================= SESSION 2 ======================= -->
 <section class="slide section" id="s2" data-auto="section" data-session="2"></section>
 
-<section class="slide" id="s2-idea" data-lo="LO2 LO6">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
+<section class="slide" data-label="The clock" id="right-clock" data-lo="LO2 LO6">
+  <div class="kicker">Timers</div>
+  <h2>Time with a monotonic clock, around the call, many times</h2>
   <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
+    <pre class="code s" data-file="Lab 1.2"><code class="language-python">ms = []
+for _ in range(100):
+    t0 = time.perf_counter()
+    with torch.no_grad():
+        model(leaf)
+    ms.append((time.perf_counter() - t0) * 1000)</code></pre>
+    <ul class="bullets small">
+      <li><code>perf_counter</code> never jumps; <code>time.time</code> follows the wall clock, which can be adjusted.</li>
+      <li>On a GPU, call <code>torch.cuda.synchronize()</code> before reading the clock: the work is asynchronous.</li>
+      <li>One timing is an anecdote. A hundred are a distribution.</li>
     </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <aside class="notes"><p>Demonstrate in a notebook: time one call five times and show five different numbers. Then ask what Mutaib meant by "it takes 5 ms": which of these numbers?</p></aside>
 </section>
 
-<section class="slide" id="s2-steps" data-lo="LO2 LO6">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Distribution" id="latency-distribution" data-lo="LO6">
+  <div class="kicker">Measured in Lab 1.2: one Waraqa inference, batch 1, 100 calls</div>
+  <h2>Latency has a floor and a long right tail</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">5.7 ms</div><div class="lbl">median</div></div>
+    <div class="stat"><div class="big">7.4 ms</div><div class="lbl">95th percentile</div></div>
+    <div class="stat"><div class="big">8.4 ms</div><div class="lbl">99th percentile</div></div>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <div class="callout tip mt"><b>Report the median and the 95th percentile.</b> The mean is pulled up by the tail; a standard deviation assumes a bell curve that latency never has.</div>
+  <aside class="notes"><p>Numbers from the course's run of Lab 1.2 (full mode, four threads, the course laptop). Show the histogram from the notebook if you ran it. A farm agent who checks twenty leaves in a row meets the 95th percentile once.</p></aside>
+</section>
+
+<section class="slide" data-label="Cold start" id="cold-start" data-lo="LO6">
+  <div class="kicker">The first calls</div>
+  <h2>The first call is a different event: report it, do not average it</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">1.3 x</div><div class="lbl">the warm median, for the first call of a freshly loaded model (Lab 1.2)</div></div>
+    <ul class="bullets small">
+      <li>The first call allocates memory, picks kernels and fills caches.</li>
+      <li>A user who opens the app pays it once; a benchmark that includes it in 100 calls hides both numbers.</li>
+      <li>So: warm up, then time; and time the cold start on its own.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>The first call in the course run took 7.5 ms against a warm median of 5.7 ms. Compilers (Day 2) make the first call much slower again; that is why "first call" is a column of the Day 2 table.</p></aside>
+</section>
+
+<section class="slide" data-label="Load" id="background-load" data-lo="LO6">
+  <div class="kicker">Measured in Lab 1.2 with two busy processes</div>
+  <h2>Background load moves the tail before the median</h2>
+  <table class="t">
+    <tr><th>Machine state</th><th class="num">Median ms</th><th class="num">p95 ms</th><th class="num">p99 ms</th></tr>
+    <tr><td>Quiet</td><td class="num">5.7</td><td class="num">7.4</td><td class="num">8.4</td></tr>
+    <tr class="hl"><td>Two processes computing in a loop</td><td class="num">4.3</td><td class="num">9.0</td><td class="num">17.6</td></tr>
+  </table>
+  <p class="small mt">A farm-office laptop runs a browser, a sync client and an antivirus scan. Write what else was running next to every number.</p>
+  <aside class="notes"><p>On a laptop with more free cores than busy processes the median may barely move while the tail does. On a two-core Colab runtime both move a lot. Ask: which of these numbers would you put in a budget?</p></aside>
+</section>
+
+<section class="slide" data-label="Rule" id="timing-rule" data-lo="LO2 LO6">
+  <div class="kicker">The rule for the week</div>
+  <h2>Warm up, repeat, report percentiles and the conditions</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>1 · Warm up</b>untimed calls first; the cold start reported apart</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>2 · Repeat</b>at least 100 calls on fixed inputs</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>3 · Summarise</b>median and 95th percentile, later with intervals</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>4 · Record</b>processor, threads, power mode, what else ran</div>
+  </div>
+  <aside class="notes"><p>This is the base of LO6's benchmark (Lab 4.2). Intervals come on Day 4; for now, the habit.</p></aside>
+</section>
+
+<section class="slide" data-label="Two tools" id="timers-vs-profilers" data-lo="LO2">
+  <div class="kicker">Timers and profilers</div>
+  <h2>A timer says how long; a profiler says what ran</h2>
+  <div class="cols cols-2">
+    <div class="card c-teal"><h4>Timers</h4><p class="small mb0">Cheap, honest about wall time, blind to what happened inside. Put them around phases you name.</p></div>
+    <div class="card c-coral"><h4>Profilers</h4><p class="small mb0">Record every operator or sample every call stack. Show where time goes inside a phase, with some overhead of their own.</p></div>
+  </div>
+  <div class="callout note mt"><b>Use both.</b> Timers to find the slow phase, a profiler to find why it is slow, timers again to prove the fix.</div>
+  <aside class="notes"><p>Session 3 uses the framework's profiler on a training step; py-spy and Scalene are Python-level profilers that see the data loader too. memray is a memory profiler for Linux and macOS only.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-2" data-lo="LO6">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which number goes in the budget?</h2>
+  <div class="quiz" data-type="single" data-lo="LO6">
+    <p class="lead">100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says "per leaf, in the office". Which number do you compare with it?</p>
+    <div class="opts">
+      <div class="opt" data-why="Uses the mean, which a few slow calls pull up and which hides how often a farmer waits long">The mean, 6.1 ms</div>
+      <div class="opt" data-why="Uses the typical call and ignores the slow one in twenty that the farmer actually notices">The median, 5.2 ms</div>
+      <div class="opt" data-ok>The 95th percentile, 9.8 ms, with the cold start reported apart</div>
+      <div class="opt" data-why="Mixes a one-time event into a per-leaf budget; the first call is paid once per session">The first call, 140 ms</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> A budget on a tail percentile protects the slow calls users feel; the cold start is a separate line because it is paid once.</div>
+  </div>
+  <aside class="notes"><p>Answer: C. If the room picks B, ask how many of twenty leaves would be slower than the median: ten.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-1-2" data-auto="lab" data-lab="1.2">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>The background-load step starts two Python processes; make sure they are stopped (the cell kills them in a finally block). On Windows the processes appear in the task manager for a few seconds. In Colab the effect is dramatic: two cores, two busy processes. Ask participants to keep their timing rule: Lab 4.2 builds on it.</p></aside>
 </section>
 
-<!-- Session 3 -->
-
+<!-- ======================= SESSION 3 ======================= -->
 <section class="slide section" id="s3" data-auto="section" data-session="3"></section>
 
-<section class="slide" id="s3-idea" data-lo="LO2">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
-  <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+<section class="slide" data-label="Anatomy" id="step-anatomy" data-lo="LO2">
+  <div class="kicker">A training step</div>
+  <h2>A training step has four phases, and any of them can be the slow one</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>1 · Load</b>read, decode, augment, batch</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>2 · Forward</b>compute the loss</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>3 · Backward</b>compute the gradients</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>4 · Optimiser</b>update the weights</div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <div class="callout warn mt"><b>What goes wrong.</b> Buying a faster processor for a step that waits for its data.</div>
+  <aside class="notes"><p>Backward usually costs about twice the forward pass. The optimiser is small for a small model. Loading is the one people forget: it is not in the model code at all.</p></aside>
 </section>
 
-<section class="slide" id="s3-steps" data-lo="LO2">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Lina's script" id="lina-script" data-lo="LO2">
+  <div class="kicker">The supplied slow script</div>
+  <h2>Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch</h2>
+  <pre class="code s" data-file="nama.py · FieldExportSlow"><code class="language-python">img = Image.open(self.folder / name).convert("RGB")   # decode a PNG
+img = img.rotate(angle, resample=Image.BILINEAR)       # augment at 224 px
+img = img.resize((64, 64), Image.BILINEAR)             # then shrink
+x = torch.tensor(np.array(img), dtype=torch.float32)   # one leaf at a time
+# ... in the main process: num_workers=0</code></pre>
+  <aside class="notes"><p>Do not point out the problems yet: ask the room to predict which phase will be largest and write the guess down. Lab 1.3 checks the guess.</p></aside>
+</section>
+
+<section class="slide" data-label="Timers" id="phase-timers" data-lo="LO2">
+  <div class="kicker">Timers around phases</div>
+  <h2>Four timers split the step; on a GPU, synchronise before each reading</h2>
+  <pre class="code s" data-file="lina_train.py · phase_step"><code class="language-python">t0 = time.perf_counter(); x, y = next(batches)
+t1 = time.perf_counter(); loss = F.cross_entropy(model(x), y)
+t2 = time.perf_counter(); loss.backward()
+t3 = time.perf_counter(); opt.step(); opt.zero_grad()
+t4 = time.perf_counter()
+# GPU: torch.cuda.synchronize() before each perf_counter()</code></pre>
+  <aside class="notes"><p>Skip the first two steps: they pay for start-up. The lab's run() does this. On a GPU without synchronisation the backward phase looks instantaneous and the next phase pays for it.</p></aside>
+</section>
+
+<section class="slide" data-label="Profiler" id="profiler-table" data-lo="LO2">
+  <div class="kicker">Measured in Lab 1.3 with torch.profiler</div>
+  <h2>The profiler table: sort by self time, read the top rows</h2>
+  <table class="t small">
+    <tr><th>Row</th><th class="num">Self CPU ms</th><th>What it is</th></tr>
+    <tr class="hl"><td><code>enumerate(DataLoader)</code></td><td class="num">879.0</td><td>the loader: reading, decoding and rotating the PNG leaves</td></tr>
+    <tr><td><code>aten::convolution_backward</code></td><td class="num">431.2</td><td>gradients of the six convolutions</td></tr>
+    <tr><td><code>aten::mkldnn_convolution</code></td><td class="num">180.5</td><td>the six convolutions, forward</td></tr>
+    <tr><td><code>aten::max_pool2d_with_indices</code></td><td class="num">41.8</td><td>max pooling, forward</td></tr>
+    <tr><td><code>aten::native_batch_norm</code></td><td class="num">36.1</td><td>batch norm, forward</td></tr>
+  </table>
+  <p class="small mt"><b>Self</b> time is spent in the operator itself; <b>total</b> includes what it calls.</p>
+  <aside class="notes"><p>Rows from the course's run of Lab 1.3 (quick mode excluded; full mode, four threads). The loader appears as one opaque row: the profiler says loading is slow, not why. That is the cue for a Python-level profiler (py-spy, Scalene) in the stretch.</p></aside>
+</section>
+
+<section class="slide" data-label="Ranking" id="lina-ranking" data-lo="LO2">
+  <div class="kicker">Measured in Lab 1.3: median of the timed steps, batch 64</div>
+  <h2>Lina's step is input-bound: loading is the largest phase</h2>
+  <div class="bars">
+    <div class="row"><span>Loading</span><div class="bar c-coral" style="--w:66%"></div><span class="val">1,420 ms, 66%</span></div>
+    <div class="row"><span>Backward</span><div class="bar c-teal" style="--w:18%"></div><span class="val">385 ms, 18%</span></div>
+    <div class="row"><span>Forward</span><div class="bar c-teal" style="--w:16%"></div><span class="val">342 ms, 16%</span></div>
+    <div class="row"><span>Optimiser</span><div class="bar c-teal" style="--w:1%"></div><span class="val">5 ms, 0.2%</span></div>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <p class="small mt">One step: 2,142 ms. One epoch of 16,000 leaves at this rate: about 9 minutes.</p>
+  <aside class="notes"><p>Compare with the guesses the room wrote down. If a participant's ranking differs (a very fast disk and processor can make backward the largest), the method still holds: fix the largest measured phase.</p></aside>
+</section>
+
+<section class="slide" data-label="Amdahl" id="amdahl-ceiling" data-lo="LO2">
+  <div class="kicker">The ceiling of a fix</div>
+  <h2>Removing one phase can never beat the sum of the others</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">2.9 x</div><div class="lbl">the most Lina's step can gain if loading cost nothing (Lab 1.3)</div></div>
+    <ul class="bullets small">
+      <li>Speed-up limit = 1 / (1 - share of the phase you fix).</li>
+      <li>Compute this before you start: it says whether the fix is worth a day.</li>
+      <li>After the fix, the next phase is the bottleneck: measure again.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>This is Amdahl's law applied to one step. It also explains why a faster GPU did nothing for Lina: the GPU would only shrink forward and backward.</p></aside>
+</section>
+
+<section class="slide" data-label="Flame graphs" id="flame-graphs" data-lo="LO2">
+  <div class="kicker">Python-level profilers</div>
+  <h2>A flame graph shows the whole program, loader included</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li><b>Sampling profilers</b> (py-spy) read the call stack many times a second; width of a tower is time.</li>
+      <li><b>Scalene</b> separates Python time, native time and memory per line.</li>
+      <li><b>memray</b> tracks every allocation (Linux and macOS only).</li>
+    </ul>
+    <pre class="code s" data-file="from labs/"><code class="language-bash">py-spy record -o artifacts/lina.svg \
+  -- python lina_train.py --steps 10</code></pre>
+  </div>
+  <aside class="notes"><p>The stretch of Lab 1.3. On Linux py-spy may need sudo or --nonblocking; on Windows run it from a normal terminal. Tool names are examples of the slot "Python profilers and memory tools": name the capability first.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-3" data-lo="LO2">
+  <div class="kicker">Checkpoint</div>
+  <h2>What do you fix first?</h2>
+  <div class="quiz" data-type="single" data-lo="LO2">
+    <p class="lead">A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is <code>convolution_backward</code>. What do you work on first?</p>
+    <div class="opts">
+      <div class="opt" data-why="Reads the largest operator row as the largest phase; loading is spread over Python code the table does not break down">The backward convolution, the largest profiler row</div>
+      <div class="opt" data-ok>Loading, the largest measured phase</div>
+      <div class="opt" data-why="Optimises the cheapest phase: even removing it entirely saves 2%">The optimiser, by switching to SGD</div>
+      <div class="opt" data-why="Changes the compute roof while the step waits for data; forward and backward are 38%">A faster processor for forward and backward</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> The largest phase sets the ceiling: fixing loading can make the step up to 2.5 times faster, fixing backward at most 1.3 times.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. Make the room compute both ceilings with Amdahl: 1 / 0.4 = 2.5 and 1 / 0.75 = 1.33.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-1-3" data-auto="lab" data-lab="1.3">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>The first run builds the PNG field export (about a minute in quick mode). AI-tutor: an assistant may explain a profiler row, not rank the phases. Usual problems: reading the first two steps (start-up); comparing profiler totals with timer medians (one is one step, the other a median); a laptop on battery.</p></aside>
 </section>
 
-<!-- Session 4 -->
-
+<!-- ======================= SESSION 4 ======================= -->
 <section class="slide section" id="s4" data-auto="section" data-session="4"></section>
 
-<section class="slide" id="s4-idea" data-lo="LO2">
-  <div class="kicker">REPLACE: the question this slide answers</div>
-  <h2>REPLACE: one idea, stated as a sentence</h2>
+<section class="slide" data-label="Input-bound" id="input-bound" data-lo="LO2">
+  <div class="kicker">Input-bound against compute-bound</div>
+  <h2>A step is input-bound when the model waits for its next batch</h2>
   <div class="cols cols-2">
-    <ul class="bullets">
-      <li>REPLACE: at most six bullets, each a complete thought</li>
-      <li>REPLACE: bold the key phrase; numbers come from the lab run, not from memory</li>
-    </ul>
-    <div class="card c-teal"><h4>In the case study</h4><p class="small mb0">REPLACE: tie the idea to the case study and its data</p></div>
+    <div class="card c-coral"><h4>Input-bound</h4><p class="small mb0">Loading is the largest phase. A faster model changes nothing. Fix the pipeline.</p></div>
+    <div class="card c-teal"><h4>Compute-bound</h4><p class="small mb0">Forward and backward dominate. The pipeline is good enough. Days 2 and 3 work here.</p></div>
   </div>
-  <div class="callout warn mt"><b>What goes wrong.</b> REPLACE: the failure participants will hit, and how to recognise it</div>
-  <aside class="notes">REPLACE: what to say, the demo to run, the question to ask the room, the common failure and its fix</aside>
+  <div class="callout note mt"><b>Signs.</b> A GPU at low utilisation; one core at 100% while others idle; step time that does not change with model size.</div>
+  <aside class="notes"><p>Ask the room how they would tell the two apart without a profiler: replace the loader with random tensors of the right shape. If the step gets much faster, it was input-bound.</p></aside>
 </section>
 
-<section class="slide" id="s4-steps" data-lo="LO2">
-  <div class="kicker">Step by step</div>
-  <h2>REPLACE: a process, shown one step per key press</h2>
-  <div class="flow">
-    <div class="step c-teal"><b>1 · REPLACE: name</b>REPLACE: what happens first</div>
-    <div class="arrow frag" data-frag="b">→</div><div class="step c-cyan frag" data-frag="b"><b>2 · REPLACE: name</b>REPLACE: the next piece</div>
-    <div class="arrow frag" data-frag="c">→</div><div class="step c-coral frag" data-frag="c"><b>3 · REPLACE: name</b>REPLACE: the result</div>
+<section class="slide" data-label="Formats" id="formats-decode" data-lo="LO2">
+  <div class="kicker">Measured in Lab 1.4: one leaf, 50 decodes</div>
+  <h2>Decoding is compute too, and the file format sets its price</h2>
+  <table class="t">
+    <tr><th>Format of one leaf</th><th class="num">Decode ms</th><th class="num">Size kB</th></tr>
+    <tr><td>PNG, 224 pixels (the field app's export)</td><td class="num">1.85</td><td class="num">119</td></tr>
+    <tr class="hl"><td>JPEG quality 90, 64 pixels</td><td class="num">0.17</td><td class="num">1.4</td></tr>
+  </table>
+  <p class="small mt">JPEG is lossy: the two decoded leaves differ by 2.5 of 255 per pixel on average. Whether that matters is a quality question, measured, not seen.</p>
+  <aside class="notes"><p>Most of the gain is the size: the model needs 64 pixels and the export ships 224. The cheapest pixel is the one never stored. Formats for training at scale (WebDataset shards, arrays in one file) follow the same logic: decode once, read bytes.</p></aside>
+</section>
+
+<section class="slide" data-label="Workers" id="parallel-workers" data-lo="LO2">
+  <div class="kicker">Parallel loading and prefetching</div>
+  <h2>Workers prepare the next batches while the model trains on this one</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 1.4"><code class="language-python">DataLoader(ds, batch_size=64, shuffle=True,
+           num_workers=4,
+           persistent_workers=True,
+           prefetch_factor=2)</code></pre>
+    <ul class="bullets small">
+      <li>Workers <b>hide</b> loading behind compute; they do not make it cheaper.</li>
+      <li>They take cores the training step also wants.</li>
+      <li>On Windows and macOS each worker is a fresh Python process: the first batch is slow.</li>
+    </ul>
   </div>
-  <div class="callout tip mt frag"><b>Takeaway.</b> REPLACE: the one sentence to remember</div>
-  <aside class="notes">Press once per step and say what each step adds before the next one appears. REPLACE: the example to walk through</aside>
+  <aside class="notes"><p>The dataset class must be importable from a module for workers on Windows and macOS (spawned processes import it); that is why the loaders live in nama.py. In a script, put the training under if __name__ == "__main__".</p></aside>
+</section>
+
+<section class="slide" data-label="Cache" id="cache-preprocessed" data-lo="LO2">
+  <div class="kicker">Caching preprocessed data</div>
+  <h2>Decode once, store the 64-pixel bytes, read bytes every epoch</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">50 MB</div><div class="lbl">for 4,096 leaves as one uint8 array, built once in 88 s (Lab 1.4)</div></div>
+    <ul class="bullets small">
+      <li>The cache is right when preprocessing is the same every epoch.</li>
+      <li>It is wrong when augmentation must differ each epoch at full size, or when the data changes faster than the cache.</li>
+    </ul>
+  </div>
+  <div class="callout warn mt"><b>What it changed besides speed.</b> Lina rotated by any angle; the cache rotates by multiples of 90 degrees. A speed-up that changes what the model learns is checked for quality.</div>
+  <aside class="notes"><p>This is the course's recurring trap: every optimisation changes something else. Day 4 is the formal check. Ask the room which other change today might affect quality: the JPEG format.</p></aside>
+</section>
+
+<section class="slide" data-label="Before and after" id="pipeline-before-after" data-lo="LO2">
+  <div class="kicker">Measured in Lab 1.4, full mode</div>
+  <h2>The before-and-after table is the evidence, not the code change</h2>
+  <table class="t small">
+    <tr><th>Pipeline</th><th class="num">Step ms</th><th class="num">Loading ms</th><th class="num">Speed-up</th></tr>
+    <tr><td>Baseline (Lina)</td><td class="num">1,059</td><td class="num">343</td><td class="num">1.0x</td></tr>
+    <tr><td>4 workers</td><td class="num">1,001</td><td class="num">1</td><td class="num">1.1x</td></tr>
+    <tr><td>Cache, main process</td><td class="num">725</td><td class="num">11</td><td class="num">1.5x</td></tr>
+    <tr class="hl"><td>Cache, 4 workers</td><td class="num">693</td><td class="num">0</td><td class="num">1.5x</td></tr>
+  </table>
+  <p class="small mt">When loading is near zero the step is compute-bound: what is left is forward, backward and the optimiser.</p>
+  <aside class="notes"><p>Numbers from the course's run on the course laptop (four threads for the model, up to four workers). This table, with the change explained, is LO2's evidence: a before-and-after profile and a measured speed-up.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-4" data-lo="LO2">
+  <div class="kicker">Checkpoint</div>
+  <h2>Workers made loading vanish. Why is the step only a little faster?</h2>
+  <div class="quiz" data-type="single" data-lo="LO2">
+    <p class="lead">With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?</p>
+    <div class="opts">
+      <div class="opt" data-why="Assumes the workers failed; the loading phase did drop, so they work">The workers are not running, so nothing changed</div>
+      <div class="opt" data-why="Blames measurement noise for a 25% change seen on every step">It is timer noise; the real speed-up is larger</div>
+      <div class="opt" data-why="Thinks decoding got cheaper; workers move the work to other cores, they do not reduce it">Decoding became cheaper, but not by enough</div>
+      <div class="opt" data-ok>The rest of the step (forward, backward, optimiser) was always about 2,100 ms, and the workers also take cores from it</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Hiding loading removes at most its share; what remains is compute, now competing with the workers for cores.</div>
+  </div>
+  <aside class="notes"><p>Answer: D. Tie back to Amdahl's ceiling from Session 3.</p></aside>
 </section>
 
 <section class="slide lab" id="lab-1-4" data-auto="lab" data-lab="1.4">
-  <aside class="notes">REPLACE: what to watch for while participants work, the typical problems, and the fallback for anyone who did not finish an earlier lab</aside>
+  <aside class="notes"><p>Run it as a notebook: worker processes need it on Windows and macOS. Usual problems: forgetting persistent_workers (each epoch restarts the workers); timing the first batch with workers (start-up); building the cache in a different order from labels.csv. In Colab, two cores limit what workers can do.</p></aside>
 </section>
 
-<section class="slide" id="wrap-up">
-  <div class="kicker">Day 1 · wrap-up</div>
-  <h2>Three things to keep</h2>
+<!-- ======================= CLOSING ======================= -->
+<section class="slide" data-label="Recap" id="day-1-recap">
+  <div class="kicker">Day 1 recap</div>
+  <h2>Three things to keep from Day 1</h2>
   <div class="cols cols-3">
-    <div class="card c-teal"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-coral"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
-    <div class="card c-purple"><h4>Remember</h4><p class="small mb0">REPLACE: one idea participants keep</p></div>
+    <div class="card c-teal"><h4>Know the roof</h4><p class="small mb0">Count FLOPs and bytes; the intensity says whether compute or bandwidth binds.</p></div>
+    <div class="card c-cyan"><h4>Distributions, not numbers</h4><p class="small mb0">Warm up, repeat, report the median and the 95th percentile and the machine.</p></div>
+    <div class="card c-coral"><h4>Largest phase first</h4><p class="small mb0">Time the phases, profile the largest, fix it, measure again.</p></div>
   </div>
+  <aside class="notes"><p>Ask each table for the one number from today they would show Ghadeer. Good answers: the step time before and after, with the change that bought it.</p></aside>
 </section>
 
-<section class="slide dark" id="next" data-label="Next">
-  <div class="kicker">Next</div>
-  <h2>Day 2: Memory and training efficiency</h2>
-  <p class="lead">REPLACE: what participants prepare before then; unfinished labs can be finished at home</p>
-  <aside class="notes">REPLACE: accounts, installs or reading participants need before the next unit</aside>
+<section class="slide dark" data-label="Tomorrow" id="tomorrow-memory">
+  <div class="kicker">Tomorrow · Day 2</div>
+  <h2>Memory and training efficiency</h2>
+  <p class="lead">Tomorrow you estimate what a training step holds in memory and check it against a measured peak, then test mixed precision, gradient accumulation, activation checkpointing and compilation on Waraqa. Bring your Lab 1.1 peak and bandwidth figures.</p>
+  <aside class="notes"><p>Every Day 2 lab starts from a supplied checkpoint; nobody needs today's outputs. Ask participants to charge their laptops: Day 2 trains.</p></aside>
 </section>
