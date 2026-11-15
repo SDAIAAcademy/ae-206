@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-ax="page" data-track="ai-engineering">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machine Learning Systems on One Machine · SDAIA Academy</title>
+<meta name="generator" content="SDAIA Academy engine 1.0.0">
+<meta name="description" content="Find where time and memory go on one machine, fix the largest cost first, and prove each speed-up kept its quality">
+<link rel="icon" href="_engine/icon.svg">
+<link rel="alternate" type="text/markdown" href="index.md">
+<link rel="describedby" href="llms.txt">
+<link rel="stylesheet" href="_engine/academy.css">
+</head>
+<body>
+<header>
+<div class="wrap">
+<div class="top"><div class="logo" id="logo"></div><nav><a href="slides/day1.html">Slides</a><a href="practice.html">Practice</a><a href="index.md" type="text/markdown">Markdown</a></nav></div>
+<div class="kicker">AI Engineering Track · SDAIA Academy · AE-206</div>
+<h1>Machine Learning Systems on One Machine<span class="sub ar" lang="ar" dir="rtl">أنظمة تعلم الآلة على جهاز واحد</span></h1>
+<p>Find where time and memory go on one machine, fix the largest cost first, and prove each speed-up kept its quality</p>
+<div class="meta"><span class="track">AI Engineering Track</span><span>4 teaching days + capstone day</span><span>26 hours</span><span>Level 200</span><span>AI Engineering · Assistant badge</span></div>
+</div>
+</header>
+<main class="wrap">
+<h2>About the course</h2>
+<p>Participants find out where time and memory go between raw data and a served prediction, and fix the largest cost first. For a fictional agritech company they profile a data pipeline and a training step, estimate memory from weights, activations, optimiser state and the key-value cache, apply mixed precision, batching, quantisation and pruning, export a model to a portable runtime, and benchmark latency, throughput and quality with repeated runs and intervals. Labs run on a laptop CPU, with an optional free notebook GPU, and every speed-up must be measured and checked for loss of quality.</p>
+<p><b>Who it is for:</b> Practitioners. Graduates and early-career developers who have completed the FN courses or passed the placement test, and software engineers moving into AI work.</p>
+<p><b>Format:</b> Intensive: 4 teaching days of four sessions and a capstone day, with guided pre-work and a tracked follow-up task</p>
+<h2>The case study</h2>
+<div class="note info"><b>Nama Agritech.</b> Nama Agritech is a fictional farm-advisory company whose agents run two models on old farm-office laptops: Waraqa, a leaf-disease classifier trained on 20,000 synthetic leaf images in ten disease classes and four crops, and Hasad, a small language model the course trained to answer 2,000 synthetic Arabic farmer questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English. Participants measure, profile, estimate memory, compress, export and benchmark both against the budget Nama set for its laptops; all data is synthetic and generated with a fixed seed.</div>
+<h2>The course</h2>
+<div class="day">
+<div class="day-head c-teal"><div><div class="t">Day 1 · 4 sessions · 4 labs</div><h3>Measure first</h3></div><a class="btn" href="slides/day1.html">Open the slides</a></div>
+<div class="scroll"><table>
+<tr><th>Session</th><th>Topic</th><th>Lab</th></tr>
+<tr><td>1</td><td><b>Compute, memory and bandwidth</b><br>Compute, memory capacity and bandwidth as the three limits, and the roofline that says which one binds<ul><li>Estimate the FLOPs and bytes moved of a layer</li><li>Place a layer on a roofline from its arithmetic intensity</li><li>Name the binding limit of a described workload</li></ul></td><td><a href="labs/D1_1_roofline.ipynb">Lab 1.1 · Two layers on the roofline</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D1_1_roofline.ipynb">Open in Colab</a></td></tr>
+<tr><td>2</td><td><b>Timers, profilers and noise</b><br>Timers, warm-up, variance and percentiles: why one timing is never the answer<ul><li>Time a call correctly with a monotonic clock and warm-up</li><li>Report a distribution with its median and tail percentiles</li><li>Show how background load changes the tail</li></ul></td><td><a href="labs/D1_2_timing_noise.ipynb">Lab 1.2 · Noise in one inference</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D1_2_timing_noise.ipynb">Open in Colab</a></td></tr>
+<tr><td>3</td><td><b>Profiling a training step</b><br>The anatomy of a training step, read with timers and with the framework's profiler<ul><li>Split a training step into loading, forward, backward and optimiser time</li><li>Read a profiler table sorted by self time</li><li>Name the largest bottleneck from the measurements</li></ul></td><td><a href="labs/D1_3_profile_step.ipynb">Lab 1.3 · Profile Lina's training step</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D1_3_profile_step.ipynb">Open in Colab</a></td></tr>
+<tr><td>4</td><td><b>Fixing an input-bound pipeline</b><br>Decoding, file formats, parallel workers and caching: removing an input bottleneck<ul><li>Tell an input-bound step from a compute-bound one</li><li>Add parallel loading and a cache of preprocessed data</li><li>Measure the speed-up and say which change bought it</li></ul></td><td><a href="labs/D1_4_input_pipeline.ipynb">Lab 1.4 · Fix the input pipeline</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D1_4_input_pipeline.ipynb">Open in Colab</a></td></tr>
+</table></div>
+</div>
+<div class="day">
+<div class="day-head c-cyan"><div><div class="t">Day 2 · 4 sessions · 4 labs</div><h3>Memory and training efficiency</h3></div><a class="btn" href="slides/day2.html">Open the slides</a></div>
+<div class="scroll"><table>
+<tr><th>Session</th><th>Topic</th><th>Lab</th></tr>
+<tr><td>1</td><td><b>Where memory goes</b><br>Weights, gradients, optimiser state and activations: an estimate you can check<ul><li>Compute the bytes of weights, gradients and optimiser state</li><li>Estimate activation memory from layer shapes and batch size</li><li>Explain the gap between an estimate and a measured peak</li></ul></td><td><a href="labs/D2_1_memory_budget.ipynb">Lab 2.1 · Memory at three batch sizes</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D2_1_memory_budget.ipynb">Open in Colab</a></td></tr>
+<tr><td>2</td><td><b>Mixed precision</b><br>Number formats, autocast and what the hardware actually accelerates<ul><li>Choose between float32, float16 and bfloat16 for a step</li><li>Train with autocast and compare time and accuracy</li><li>Read whether a processor has native support before expecting a speed-up</li></ul></td><td><a href="labs/D2_2_mixed_precision.ipynb">Lab 2.2 · Reduced precision</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D2_2_mixed_precision.ipynb">Open in Colab</a></td></tr>
+<tr><td>3</td><td><b>Accumulation and checkpointing</b><br>Gradient accumulation and activation checkpointing: a large batch in fixed memory<ul><li>Reach an effective batch with gradient accumulation</li><li>Trade recomputation for memory with activation checkpointing</li><li>Verify that a memory saving did not change the gradient</li></ul></td><td><a href="labs/D2_3_accumulate_checkpoint.ipynb">Lab 2.3 · A large batch in fixed memory</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D2_3_accumulate_checkpoint.ipynb">Open in Colab</a></td></tr>
+<tr><td>4</td><td><b>Compilation and fusion</b><br>Graphs, operator fusion and compilation: the first-call cost and the steady state<ul><li>Fold a batch norm into the convolution before it</li><li>Measure a compiler's first-call cost against its steady-state gain</li><li>Complete a results table of time, memory and accuracy per setting</li></ul></td><td><a href="labs/D2_4_compile_fusion.ipynb">Lab 2.4 · Compile and fuse</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D2_4_compile_fusion.ipynb">Open in Colab</a></td></tr>
+</table></div>
+</div>
+<div class="day">
+<div class="day-head c-coral"><div><div class="t">Day 3 · 4 sessions · 4 labs</div><h3>Inference and compression</h3></div><a class="btn" href="slides/day3.html">Open the slides</a></div>
+<div class="scroll"><table>
+<tr><th>Session</th><th>Topic</th><th>Lab</th></tr>
+<tr><td>1</td><td><b>Latency, throughput and batching</b><br>Latency against throughput, batching and the queue that batching creates<ul><li>Measure latency and throughput across batch sizes</li><li>Explain why batching raises throughput and latency together</li><li>Choose a batch size for a latency budget</li></ul></td><td><a href="labs/D3_1_batching.ipynb">Lab 3.1 · Batch size against latency</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D3_1_batching.ipynb">Open in Colab</a></td></tr>
+<tr><td>2</td><td><b>Language model inference on a laptop</b><br>Prefill and decode, the key-value cache and its arithmetic, and which questions may leave the device<ul><li>Measure time to first token and tokens per second</li><li>Size a key-value cache from the model's shape</li><li>Route a question by its data classification</li></ul></td><td><a href="labs/D3_2_lm_inference.ipynb">Lab 3.2 · Hasad on a laptop</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D3_2_lm_inference.ipynb">Open in Colab</a></td></tr>
+<tr><td>3</td><td><b>Quantisation</b><br>Quantisation formats, scales and calibration, for a classifier and a language model<ul><li>Quantise a classifier to 8 bits with calibration data</li><li>Compare 8-bit and 4-bit language model files on size, speed and answers</li><li>Re-measure quality by group after every quantisation</li></ul></td><td><a href="labs/D3_3_quantisation.ipynb">Lab 3.3 · Quantise Waraqa and Hasad</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D3_3_quantisation.ipynb">Open in Colab</a></td></tr>
+<tr><td>4</td><td><b>Pruning or a smaller model</b><br>Unstructured and structured pruning, a smaller architecture, and distillation as an idea<ul><li>Prune whole channels by an importance score</li><li>Recover accuracy with brief fine-tuning</li><li>Compare a pruned model with a smaller one trained from scratch</li></ul></td><td><a href="labs/D3_4_pruning.ipynb">Lab 3.4 · Prune or shrink</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D3_4_pruning.ipynb">Open in Colab</a></td></tr>
+</table></div>
+</div>
+<div class="day">
+<div class="day-head c-purple"><div><div class="t">Day 4 · 4 sessions · 4 labs</div><h3>Export and benchmark</h3></div><a class="btn" href="slides/day4.html">Open the slides</a></div>
+<div class="scroll"><table>
+<tr><th>Session</th><th>Topic</th><th>Lab</th></tr>
+<tr><td>1</td><td><b>Export to a portable runtime</b><br>Exchange formats, graph optimisation and runtimes for processors, edge devices and small language models<ul><li>Export a model to an exchange format with a dynamic batch axis</li><li>Check runtime outputs against the original within a tolerance</li><li>Compare graph optimisation levels of a runtime</li></ul></td><td><a href="labs/D4_1_export_parity.ipynb">Lab 4.1 · Export and check parity</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D4_1_export_parity.ipynb">Open in Colab</a></td></tr>
+<tr><td>2</td><td><b>A benchmark you can trust</b><br>Benchmark design: warm-up, repetitions, a fixed input mix, intervals and a re-run<ul><li>Write a benchmark that controls warm-up, repetitions and input mix</li><li>Report percentiles with bootstrap confidence intervals</li><li>Re-run a benchmark and judge the agreement</li></ul></td><td><a href="labs/D4_2_benchmark.ipynb">Lab 4.2 · A benchmark you can trust</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D4_2_benchmark.ipynb">Open in Colab</a></td></tr>
+<tr><td>3</td><td><b>Quality must survive</b><br>Paired comparison of a compressed model with the original, overall and by group<ul><li>Compare two models on the same items with a paired test</li><li>Put an interval on an accuracy difference</li><li>Accept or reject a variant on the quality floor by crop type</li></ul></td><td><a href="labs/D4_3_quality_by_crop.ipynb">Lab 4.3 · Quality by crop type</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D4_3_quality_by_crop.ipynb">Open in Colab</a></td></tr>
+<tr><td>4</td><td><b>Budgets and trade-offs</b><br>Budgets, ordering changes by measured impact, energy per prediction and the capstone brief<ul><li>Choose the variant that meets a latency and memory budget</li><li>Estimate energy per 1,000 predictions</li><li>Order optimisation changes by measured impact</li></ul></td><td><a href="labs/D4_4_budget_choice.ipynb">Lab 4.4 · Choose under the budget</a> <span class="muted">(25 min)</span><br><a href="https://colab.research.google.com/github/SDAIAAcademy/ae-206/blob/main/labs/D4_4_budget_choice.ipynb">Open in Colab</a></td></tr>
+</table></div>
+</div>
+<div class="day">
+<div class="day-head c-amber"><div><div class="t">Capstone</div><h3>Capstone: an optimisation study and its defence</h3></div><a class="btn" href="slides/capstone.html">Open the slides</a></div>
+<div class="scroll"><table><tr><td>Eight minutes of results, a live re-run, four minutes of questions</td></tr></table></div>
+</div>
+<h2>Capstone</h2>
+<div class="two">
+<div><p>An optimisation study on a model of the participant's choice, submitted as a public repository whose README reports the baseline profile, each change ordered by measured impact, and the final latency, memory and quality against a stated budget with intervals and the hardware used, followed by an eight-minute defence and four minutes of questions</p><p><b>What you submit:</b> A public GitHub repository whose README reports the baseline profile, each change ordered by measured impact, and the final latency, memory and quality against the stated budget with intervals and the hardware used; profiler outputs, benchmark logs and the commit history are in the repository. Then the eight-minute defence: the participant re-runs the benchmark live, predicts the effect of a change the assessor proposes and then measures it.</p><p><b>Format:</b> 8 min talk and demo · 4 min Q&amp;A</p></div>
+<div><h3>Rubric</h3><div class="bar c-teal"><span>Baseline profile<i style="--w:80%"></i></span><b>20%</b></div><div class="bar c-cyan"><span>Changes ordered by measured impact<i style="--w:100%"></i></span><b>25%</b></div><div class="bar c-coral"><span>Quality re-evaluation<i style="--w:80%"></i></span><b>20%</b></div><div class="bar c-purple"><span>Benchmark method<i style="--w:80%"></i></span><b>20%</b></div><div class="bar c-amber"><span>Reproducibility<i style="--w:60%"></i></span><b>15%</b></div></div>
+</div>
+<h2>Outcomes</h2>
+<p>By the end of the course, participants can:</p>
+<div class="day"><div class="scroll"><table>
+<tr><th></th><th>Outcomes</th><th>Level</th><th>Evidence</th></tr>
+<tr><td><b>LO1</b></td><td>Explain how compute, memory capacity and memory bandwidth limit training and inference, and identify which one binds for a described workload, given four workload descriptions with model size, batch size and hardware figures</td><td>Awareness</td><td>a worked estimate for each workload that matches the reference within a stated margin</td></tr>
+<tr><td><b>LO2</b></td><td>Measure where time goes in a data pipeline and a training step with profilers and timers, and remove the largest bottleneck, given a slow training script for the leaf-image model</td><td>Applied</td><td>a before-and-after profile and a measured speed-up with the change explained</td></tr>
+<tr><td><b>LO3</b></td><td>Compute the memory needed for weights, activations, optimiser state and the key-value cache and check each estimate against measured peak memory, given a small vision model and a small language model at three batch sizes and context lengths</td><td>Applied</td><td>an estimate table next to measured peaks, with each difference explained</td></tr>
+<tr><td><b>LO4</b></td><td>Apply mixed precision, batching and compilation and report their effect on speed, memory and accuracy, given the training and inference scripts and a fixed test set</td><td>Applied</td><td>a results table with time per step, throughput, peak memory and accuracy for each setting</td></tr>
+<tr><td><b>LO5</b></td><td>Apply post-training quantisation and pruning, export the model to a portable runtime and compare size, latency and quality with the original, given the trained classifier, a small language model and a held-out evaluation set</td><td>Applied</td><td>a comparison table of size, median and tail latency and quality loss with an interval</td></tr>
+<tr><td><b>LO6</b></td><td>Prepare a benchmark that controls warm-up, repetitions, batch size and input mix, and report percentiles with confidence intervals, given two model variants and a target laptop</td><td>Applied</td><td>a benchmark script and report that another participant re-runs within 10% of the reported median</td></tr>
+<tr><td><b>LO7</b></td><td>Optimise a model and its serving path to meet a stated latency and memory budget on a target device while keeping quality within an agreed tolerance, given a budget set by the company for its farm-office laptops and a quality floor on the held-out set</td><td>Performance</td><td>an optimisation log ordered by measured impact and a final benchmark that meets the budget or explains the gap</td></tr>
+</table></div></div>
+<h2>Tools</h2>
+<div class="grid">
+<div class="card c-teal"><h3>Deep learning framework with a profiler</h3><p>PyTorch and its profiler · JAX and its profiler</p></div>
+<div class="card c-cyan"><h3>Python profilers and memory tools</h3><p>py-spy · Scalene · memray</p></div>
+<div class="card c-coral"><h3>Portable inference runtime</h3><p>ONNX Runtime · ExecuTorch · LiteRT</p></div>
+<div class="card c-purple"><h3>Small language model runtime with quantisation</h3><p>llama.cpp · Ollama</p></div>
+<div class="card c-green"><h3>Benchmark harness</h3><p>pytest-benchmark · hyperfine · a supplied timing script</p></div>
+<div class="card c-teal"><h3>Analytical performance model</h3><p>MLSys·im from the open Machine Learning Systems textbook · a spreadsheet roofline model</p></div>
+<div class="card c-cyan"><h3>Statistics</h3><p>SciPy · NumPy</p></div>
+</div>
+<h2>Before you start</h2>
+<h3>Prerequisites</h3>
+<ul><li>AE-202 Deep Learning and Generative AI Fundamentals</li><li>Trains a small neural network with a hand-written training loop</li><li>Reads a histogram and computes a percentile</li><li>Setup: a laptop with uv (any recent processor, 8 GB of memory), or Google Colab, where a free GPU runtime is optional. Nothing downloads a model: both models are in the repository. Run 00_setup_check before Day 1; see labs/README.md.</li></ul>
+<div class="note tip">The labs are notebooks. Open each one in Google Colab from the table above, or clone the repository and run them locally.</div>
+<h2>Sources</h2>
+<h3>Performance models and measurement</h3>
+<ul><li><a href="https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.html">Williams, Waterman and Patterson: Roofline, an insightful visual performance model (UC Berkeley technical report, 2008)</a></li><li><a href="https://mlsysbook.ai/">Machine Learning Systems, the open textbook, with MLSys·im</a></li><li><a href="https://docs.pytorch.org/docs/2.15/profiler.html">PyTorch 2.15: torch.profiler</a></li><li><a href="https://docs.pytorch.org/tutorials/recipes/recipes/benchmark.html">PyTorch recipe: benchmarking with torch.utils.benchmark</a></li><li><a href="https://github.com/benfred/py-spy">py-spy, a sampling profiler for Python</a></li><li><a href="https://github.com/plasma-umass/scalene">Scalene, a CPU, GPU and memory profiler for Python</a></li><li><a href="https://github.com/bloomberg/memray">memray, a memory profiler for Python (Linux and macOS)</a></li><li><a href="https://docs.jax.dev/en/latest/profiling.html">JAX documentation: profiling computation</a></li><li><a href="https://github.com/sharkdp/hyperfine">hyperfine, a command-line benchmarking tool</a></li><li><a href="https://pytest-benchmark.readthedocs.io/">pytest-benchmark documentation</a></li></ul>
+<h3>Training efficiently</h3>
+<ul><li><a href="https://docs.pytorch.org/docs/2.15/data.html">PyTorch 2.15: datasets and data loaders (torch.utils.data)</a></li><li><a href="https://docs.pytorch.org/docs/2.15/amp.html">PyTorch 2.15: automatic mixed precision (torch.amp)</a></li><li><a href="https://docs.pytorch.org/docs/2.15/checkpoint.html">PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)</a></li><li><a href="https://docs.pytorch.org/docs/2.15/generated/torch.compile.html">PyTorch 2.15: torch.compile</a></li><li><a href="https://docs.pytorch.org/docs/2.15/backends.html">PyTorch 2.15: torch.backends</a></li><li><a href="https://arxiv.org/abs/1604.06174">Chen, Xu, Zhang and Guestrin: Training deep nets with sublinear memory cost (2016)</a></li></ul>
+<h3>Inference, compression and export</h3>
+<ul><li><a href="https://arxiv.org/abs/2309.06180">Kwon et al.: Efficient memory management for large language model serving with PagedAttention (2023)</a></li><li><a href="https://arxiv.org/abs/1510.00149">Han, Mao and Dally: Deep compression (2015)</a></li><li><a href="https://arxiv.org/abs/1503.02531">Hinton, Vinyals and Dean: Distilling the knowledge in a neural network (2015)</a></li><li><a href="https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html">ONNX Runtime: quantising ONNX models</a></li><li><a href="https://onnxruntime.ai/docs/performance/model-optimizations/graph-optimizations.html">ONNX Runtime: graph optimisations</a></li><li><a href="https://docs.pytorch.org/docs/2.15/onnx.html">PyTorch 2.15: torch.onnx</a></li><li><a href="https://github.com/pytorch/executorch">ExecuTorch: on-device AI for PyTorch</a></li><li><a href="https://ai.google.dev/edge/litert">LiteRT (Google AI Edge)</a></li><li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md">llama.cpp: quantize tool and quantisation types</a></li><li><a href="https://ollama.com/">Ollama</a></li></ul>
+<h3>National references</h3>
+<ul><li><a href="https://sdaia.gov.sa/en/SDAIA/about/Documents/ai-principles.pdf">SDAIA: AI Ethics Principles</a></li><li><a href="https://sdaia.gov.sa/en/SDAIA/about/Documents/DataClassificationPolicy.pdf">National Data Management Office (SDAIA): Data Classification Policy</a></li></ul>
+<h2>Files and links</h2>
+<div class="files">
+<a href="practice.html"><b>practice.html</b><span>Practice questions with feedback</span></a>
+<a href="index.md"><b>index.md</b><span>This page as Markdown, for an AI assistant</span></a>
+<a href="llms.txt"><b>llms.txt</b><span>The course for AI assistants (llms.txt)</span></a>
+<a href="https://github.com/SDAIAAcademy/ae-206"><b>SDAIAAcademy/ae-206</b><span>The course repository</span></a>
+</div>
+</main>
+<footer><div class="wrap">SDAIA Academy · AI Engineering Track · Machine Learning Systems on One Machine<br><span class="muted">Course version 2027.1.0 · engine 1.0.0 · built 2026-11-15 · commit 71acc15</span></div></footer>
+<script type="application/json" id="academy-data">{"v":1,"engine":"1.0.0","build":{"at":"2026-11-15T11:52:37Z","version":"2027.1.0","commit":"71acc15"},"course":{"id":"ae-206","code":"AE-206","title":"Machine Learning Systems on One Machine","track":"ai-engineering","lang":"en","dir":"ltr","url":"https://sdaiaacademy.github.io/ae-206/","repo":"SDAIAAcademy/ae-206","home":"index.html"},"ai":{"context":{"course":"context/course.md","courseJs":"context/course.js","day":null,"llms":"llms.txt"},"tasks":[],"tools":[]},"features":{},"strings":{}}</script>
+<script src="_engine/academy.js"></script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-ax="deck" data-track="ai-engineering">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 1 · Measure first · Machine Learning Systems on One Machine</title>
+<meta name="generator" content="SDAIA Academy engine 1.0.0">
+<link rel="icon" href="../_engine/icon.svg">
+<link rel="alternate" type="text/markdown" href="day1.md">
+<link rel="describedby" href="../llms.txt">
+<link rel="stylesheet" href="../_engine/academy.css">
+</head>
+<body>
+<div class="deck" data-course="Machine Learning Systems on One Machine" data-track="ai-engineering" data-day="Day 1">
+<!-- ======================= OPENING ======================= -->
+<section class="slide title" id="title" data-auto="title" data-label="Welcome" data-n="1">
+  <div class="kicker">SDAIA Academy · Machine Learning Systems on One Machine</div>
+  <h1>Measure first</h1>
+  <p class="lead mt">Day 1: Where time goes, measured before anything is changed</p>
+  <div class="meta"><span class="track">AI Engineering Track</span><span>4 teaching days + capstone day</span><span>4 sessions · 4 labs</span><span>AE-206</span></div>
+  <aside class="notes"><p>Welcome the room. Quick poll: who has trained a network with a hand-written loop (the AE-202 prerequisite)? Who has ever made code faster and been wrong about why? This course has one rule, said on every day: measure before you change anything, and measure again after. Day 1 changes almost nothing: it measures.</p></aside>
+</section>
+
+<section class="slide" data-label="The week" id="four-days-one-machine" data-n="2">
+  <div class="kicker">The course at a glance</div>
+  <h2>Four days on one laptop, from raw data to a served prediction</h2>
+  <div class="cols cols-4 gap-s">
+    <div class="card c-teal"><h4>Day 1 · Measure first</h4><p class="small mb0">The machine's limits, timers, profilers, an input-bound pipeline.</p></div>
+    <div class="card c-cyan"><h4>Day 2 · Memory and training</h4><p class="small mb0">Where memory goes, mixed precision, accumulation, checkpointing, compilation.</p></div>
+    <div class="card c-coral"><h4>Day 3 · Inference and compression</h4><p class="small mb0">Batching, a language model on a laptop, quantisation, pruning.</p></div>
+    <div class="card c-purple"><h4>Day 4 · Export and benchmark</h4><p class="small mb0">A portable runtime, a benchmark you can trust, quality by group, a budget.</p></div>
+  </div>
+  <div class="callout tip mt"><b>Day 5 · Capstone.</b> An optimisation study on a model you choose, in a public repository, defended in eight minutes with a live re-run of your benchmark.</div>
+  <aside class="notes"><p>One sentence per day. Name the five capstone criteria (baseline profile 20, changes ordered by measured impact 25, quality re-evaluation 20, benchmark method 20, reproducibility 15) and say that each day builds one of them. Assessment: a supervised entry quiz and exit check without AI (20%), the capstone repository (60%), the live defence (20%); passing is 70% overall with at least 60% on the rubric and on the supervised check.</p></aside>
+</section>
+
+<section class="slide" data-label="Case study" id="nama-agritech" data-n="3">
+  <div class="kicker">One case study all week</div>
+  <h2>Nama Agritech: two models on old farm-office laptops</h2>
+  <p class="lead">A fictional farm-advisory company. Its agents visit farms with a laptop that is several years old, often offline.</p>
+  <div class="cols cols-3 gap-s mt-s">
+    <div class="card c-teal flat"><h4>Waraqa <span class="ar">ورقة</span></h4><p class="small mb0">Classifies a photographed leaf into healthy or one of nine diseases, on tomato, cucumber, citrus and date palm.</p></div>
+    <div class="card c-cyan flat"><h4>Hasad <span class="ar">حصاد</span></h4><p class="small mb0">A small language model that answers farmers' questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English.</p></div>
+    <div class="card c-coral flat"><h4>The budget</h4><p class="small mb0">Fast enough per leaf, small enough to ship, light on memory, and no quality lost where farmers would notice.</p></div>
+  </div>
+  <aside class="notes"><p>The people: Ghadeer Al-Shammasi, head of advisory products, sets the budget; Lina Al-Mohaisen, machine learning engineer, wrote the training script you profile today; Mutaib Al-Dhafeeri, field support lead, owns the laptops; Reham Al-Barakati, data protection officer, decides which questions may leave a laptop (Day 3). Participants play Ayman Al-Shahri, the performance engineer. All data is synthetic and generated with a fixed seed: 20,000 leaf images and 2,000 farmer questions. Both models were trained by the course and ship in the repository: nothing is downloaded.</p></aside>
+</section>
+
+<section class="slide" data-label="Setup" id="setup-check" data-n="4">
+  <div class="kicker">Before Session 1</div>
+  <h2>Run the setup check now: it builds the data and loads both models</h2>
+  <div class="cols cols-2">
+    <ol class="bullets small">
+      <li>Colab: open <code>00_setup_check.ipynb</code> from the course page and run all cells.</li>
+      <li>Laptop: <code>git clone</code> the course, then in <code>labs/</code> run <code>uv sync</code> and <code>uv run jupyter lab</code>.</li>
+      <li>The check prints your processor, threads and memory, builds the held-out leaves and answers one farmer question.</li>
+      <li>Its last line says whether this machine can compile models (Lab 2.4).</li>
+    </ol>
+    <div class="stack">
+      <div class="card c-teal flat"><h4>Quick mode</h4><p class="small mb0">Set <code>NAMA_QUICK=1</code> for smaller runs. Every solution finishes in minutes on a laptop processor.</p></div>
+      <div class="card c-coral flat"><h4>Write down your machine</h4><p class="small mb0">Every number this week is a number on a machine.</p></div>
+    </div>
+  </div>
+  <aside class="notes"><p>Make everyone run it before Session 1 reaches its lab. Common failures: "filename too long" on Windows (set UV_PROJECT_ENVIRONMENT to a short folder before uv sync, see labs/README.md); a laptop on battery saver (plug it in: timings halve); a corporate proxy blocking the package index (use Colab). The data build takes about a minute; it is cached in labs/cache.</p></aside>
+</section>
+
+<section class="slide" id="agenda" data-auto="agenda" data-label="Agenda" data-n="5">
+  <div class="kicker">Today</div>
+  <h2>Measure first</h2>
+  <div class="agenda"><div class="item"><div><b>Session 1 · Compute, memory and bandwidth</b><small>Compute, memory capacity and bandwidth as the three limits, and the roofline that says which one binds</small></div></div><div class="item"><div><b>Session 2 · Timers, profilers and noise</b><small>Timers, warm-up, variance and percentiles: why one timing is never the answer</small></div></div><div class="item"><div><b>Session 3 · Profiling a training step</b><small>The anatomy of a training step, read with timers and with the framework's profiler</small></div></div><div class="item"><div><b>Session 4 · Fixing an input-bound pipeline</b><small>Decoding, file formats, parallel workers and caching: removing an input bottleneck</small></div></div></div>
+</section>
+
+<!-- ======================= SESSION 1 ======================= -->
+<section class="slide section" id="s1" data-auto="section" data-session="1" data-n="6">
+  <div class="kicker">Session 1</div>
+  <h1>Compute, memory and bandwidth</h1>
+  <ul class="bullets outcomes"><li>Estimate the FLOPs and bytes moved of a layer</li><li>Place a layer on a roofline from its arithmetic intensity</li><li>Name the binding limit of a described workload</li></ul>
+  <div class="sess-no">01</div>
+</section>
+
+<section class="slide" data-label="Three limits" id="three-limits" data-lo="LO1" data-n="7" data-session="1">
+  <div class="kicker">What can make a step slow</div>
+  <h2>Every step is limited by compute, memory capacity or memory bandwidth</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal"><h4>Compute</h4><p class="small mb0">Floating-point operations per second the processor can do. A large matrix product runs into this roof.</p></div>
+    <div class="card c-cyan"><h4>Capacity</h4><p class="small mb0">Bytes that fit at all. Too many and the run fails, or spills to slower memory. Day 2 is about this one.</p></div>
+    <div class="card c-coral"><h4>Bandwidth</h4><p class="small mb0">Bytes per second between memory and the cores. Elementwise layers and decoding one token at a time run into this roof.</p></div>
+  </div>
+  <div class="callout warn mt"><b>What goes wrong.</b> Optimising the limit that does not bind. Fewer FLOPs do not help a step that waits for memory.</div>
+  <aside class="notes"><p>Ask the room for an example of each from their own work: an out-of-memory error is capacity; a GPU at 20% utilisation is often bandwidth or input. The rest of today puts numbers on the laptop's two rates, compute and bandwidth.</p></aside>
+</section>
+
+<section class="slide" data-label="Count first" id="count-flops-bytes" data-lo="LO1" data-n="8" data-session="1">
+  <div class="kicker">Before any timer</div>
+  <h2>Count FLOPs and bytes by hand: it takes two lines</h2>
+  <table class="t small">
+    <tr><th>Layer</th><th>FLOPs</th><th>Bytes moved (float32)</th><th class="num">Intensity</th></tr>
+    <tr><td>A · fully connected, batch 512, 1,024 to 1,024</td><td>2 x 512 x 1,024 x 1,024 = 1.07 G</td><td>4 x (input + weight + output) = 8.4 MB</td><td class="num">128 FLOP/byte</td></tr>
+    <tr><td>B · add a bias, then ReLU, on 4,096 x 4,096</td><td>2 per element = 0.034 G</td><td>read and write each element = 134 MB</td><td class="num">0.25 FLOP/byte</td></tr>
+  </table>
+  <p class="small mt">Arithmetic intensity = FLOPs divided by bytes moved. It is a property of the layer, not of the machine.</p>
+  <aside class="notes"><p>Work layer A on the board before showing the row: one multiply and one add per weight per row of the batch. Then ask the room to do B themselves. These are the two layers of Lab 1.1, and the estimates are AI-off.</p></aside>
+</section>
+
+<section class="slide" data-label="Roofline" id="roofline-rule" data-lo="LO1" data-n="9" data-session="1">
+  <div class="kicker">The roofline idea</div>
+  <h2>Attainable speed is the lower of two roofs</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="card c-navy"><h4>attainable = min(peak, intensity x bandwidth)</h4><p class="small mb0">Below the ridge point a layer waits for memory; above it, for arithmetic.</p></div>
+      <div class="card c-teal flat"><h4>Ridge point = peak / bandwidth</h4><p class="small mb0">The intensity at which the two roofs meet.</p></div>
+    </div>
+    <ul class="bullets small">
+      <li>A <b>floor on time</b>, never a promise: real layers sit under their roof.</li>
+      <li>It tells you <b>which roof</b> to push: fewer bytes or fewer FLOPs.</li>
+      <li>Batching raises intensity: the weights are read once for more rows.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>The model is from Williams, Waterman and Patterson's 2008 Berkeley report. Draw it on the board with log axes: a sloped line (bandwidth) that meets a flat line (peak). Sources: Roofline technical report, EECS-2008-134.</p></aside>
+</section>
+
+<section class="slide" data-label="This laptop" id="this-laptop" data-lo="LO1" data-n="10" data-session="1">
+  <div class="kicker">Measured in Lab 1.1 on the course's laptop</div>
+  <h2>A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">138</div><div class="lbl">GFLOP/s, a 2,048-square matrix product, 4 threads</div></div>
+    <div class="stat"><div class="big">33.7</div><div class="lbl">GB/s, a 256 MB copy</div></div>
+    <div class="stat"><div class="big">4.1</div><div class="lbl">FLOP per byte at the ridge</div></div>
+  </div>
+  <p class="small mt">Layer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a predicted 7.8 ms; B 6.9 ms against 4.0 ms.</p>
+  <aside class="notes"><p>Numbers from the course's run of Lab 1.1 in full mode on an Intel Core Ultra 7 265U laptop under Windows, four threads, with other programs running. Yours will differ: that is the point of measuring. Layer B is slower than its roof, which is normal; ask what the roof leaves out (call overhead, threads waiting, cache misses). Layer A came out faster than its prediction (160 against 138 GFLOP/s): no layer beats the true peak, so the 138 measured with one matrix product on a busy laptop was an underestimate of the peak. Say so: a measured roof is itself a measurement, and the largest rate you have seen is the better estimate of the peak.</p></aside>
+</section>
+
+<section class="slide" data-label="Caches" id="caches-and-reuse" data-lo="LO1" data-n="11" data-session="1">
+  <div class="kicker">Caches and data movement</div>
+  <h2>Data reused close to the cores is cheap; data fetched from main memory is not</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>Registers</b>a few hundred bytes per core</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>L1 and L2 caches</b>tens of kilobytes to a few megabytes</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>Last-level cache</b>megabytes, shared</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>Main memory</b>gigabytes, the bandwidth you measured</div>
+  </div>
+  <div class="callout tip mt"><b>Why the matrix product is fast.</b> It works on tiles that stay in cache and reuses each number many times. The 256 MB copy cannot: it reads everything once.</div>
+  <aside class="notes"><p>Keep the sizes as orders of magnitude; exact figures depend on the processor generation and change every year. The lesson that lasts: an operation's speed depends on how often it reuses what it loaded. Fusion (Day 2) and batching (Day 3) are both ways to reuse data.</p></aside>
+</section>
+
+<section class="slide" data-label="Processors" id="cpu-gpu-npu" data-lo="LO1" data-n="12" data-session="1">
+  <div class="kicker">CPUs, GPUs and neural accelerators</div>
+  <h2>Each processor trades generality for throughput on dense arithmetic</h2>
+  <div class="cols cols-3">
+    <div class="card c-navy flat"><h4>CPU</h4><p class="small mb0">Few strong cores with wide vector units. Good at branches, small batches and everything around the model.</p></div>
+    <div class="card c-teal flat"><h4>GPU</h4><p class="small mb0">Thousands of simple lanes and very high memory bandwidth. Needs large, regular work to stay busy.</p></div>
+    <div class="card c-purple flat"><h4>Neural accelerator</h4><p class="small mb0">Fixed-function units for matrix products in low precision, on many new laptops and phones. Needs a runtime that supports it.</p></div>
+  </div>
+  <div class="callout note mt"><b>Same roofline, different numbers.</b> Each has its own peak and bandwidth, so the same layer can bind differently on each.</div>
+  <aside class="notes"><p>Nama's laptops are processor-only, which is why the course measures on CPUs. The free Colab GPU is optional; on Day 2 participants who try it will see mixed precision behave very differently. Hardware figures go stale fast: keep them off slides and measure.</p></aside>
+</section>
+
+<section class="slide" data-label="Estimate first" id="analytical-model" data-lo="LO1" data-n="13" data-session="1">
+  <div class="kicker">Pre-work, used today</div>
+  <h2>An analytical model gives the first estimate; the measurement checks it</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>Pre-work (<code>labs/prework/</code>): a reading and a roofline estimate for four workloads, by hand or with a spreadsheet.</li>
+      <li><b>MLSys·im</b>, from the open Machine Learning Systems textbook, models training and inference analytically.</li>
+      <li>An estimate within a factor of two is useful: it says which limit to look at.</li>
+    </ul>
+    <div class="card c-teal"><h4>LO1 evidence</h4><p class="small mb0">A worked estimate for each of four workloads that matches the reference within a stated margin, done without AI in the supervised check.</p></div>
+  </div>
+  <aside class="notes"><p>Collect the pre-work now and pick one participant's estimate to discuss; the four workloads and their reference estimates are in labs/prework/README.md, and an estimate within 20% of the reference counts as matching. Sources: Machine Learning Systems textbook and MLSys·im (mlsysbook.ai). The supervised entry quiz and exit check include such estimates by hand, AI-off.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-1" data-lo="LO1" data-n="14" data-session="1">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which layer gets faster with fewer FLOPs?</h2>
+  <div class="quiz" data-type="single" data-lo="LO1" data-id="checkpoint-1-q1">
+    <p class="lead">On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most?</p>
+    <div class="opts">
+      <div class="opt" data-ok data-k="A">A matrix product with an intensity of 120 FLOP per byte</div>
+      <div class="opt" data-why="Thinks fewer FLOPs always help: this layer waits for memory, so its time hardly moves" data-k="B">An elementwise ReLU with an intensity of 0.25 FLOP per byte</div>
+      <div class="opt" data-why="Confuses the ridge point with the best place to be: at the ridge both roofs bind, so halving FLOPs leaves the memory roof" data-k="C">A layer sitting exactly at the ridge point</div>
+      <div class="opt" data-why="Assumes time is FLOPs divided by peak for every layer, ignoring the bandwidth roof" data-k="D">All three equally, since time is FLOPs over peak</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Only a compute-bound layer, far above the ridge, spends its time on arithmetic; halving its FLOPs nearly halves its time.</div>
+  </div>
+  <aside class="notes"><p>Answer: A. If many pick "all three", go back to the roofline slide and place each layer on it.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-1-1" data-auto="lab" data-lab="1.1" data-label="Lab 1.1" data-n="15" data-session="1">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 1.1 · 25 min</div><h2>Two layers on the roofline</h2><p class="lead small">Measure the laptop's peak compute and bandwidth, estimate the arithmetic intensity of a matrix product and an elementwise layer, predict which one is memory-bound, then time both and place them on a roofline.</p><a class="nb" href="../labs/D1_1_roofline.ipynb">D1_1_roofline.ipynb</a></div><ul class="checklist"><li>Measure peak compute with a large matrix product <span class="min">5 min</span></li><li>Measure bandwidth with a large copy <span class="min">4 min</span></li><li>Estimate FLOPs and bytes of both layers by hand <span class="min">6 min</span></li><li>Predict, then time both layers <span class="min">5 min</span></li><li>Place both on the roofline <span class="min">5 min</span></li><li class="stretch">✱ Stretch: Repeat the matrix product at batch 1 and watch it slide under the bandwidth roof</li></ul></div>
+  <aside class="notes"><p>AI-off for the estimates of task 3. Ask participants to close heavy programs. Usual problems: forgetting that a copy moves bytes twice (read and write); reading the first, cold timing; comparing their laptop's numbers with a neighbour's instead of with their own roof. In Colab the CPU runtime has two cores: the numbers are much lower, and that is fine.</p></aside>
+</section>
+
+<!-- ======================= SESSION 2 ======================= -->
+<section class="slide section" id="s2" data-auto="section" data-session="2" data-n="16">
+  <div class="kicker">Session 2</div>
+  <h1>Timers, profilers and noise</h1>
+  <ul class="bullets outcomes"><li>Time a call correctly with a monotonic clock and warm-up</li><li>Report a distribution with its median and tail percentiles</li><li>Show how background load changes the tail</li></ul>
+  <div class="sess-no">02</div>
+</section>
+
+<section class="slide" data-label="The clock" id="right-clock" data-lo="LO2 LO6" data-n="17" data-session="2">
+  <div class="kicker">Timers</div>
+  <h2>Time with a monotonic clock, around the call, many times</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 1.2"><code class="language-python">ms = []
+<span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">100</span>):
+    t0 = time.perf_counter()
+    <span class="hljs-keyword">with</span> torch.no_grad():
+        model(leaf)
+    ms.append((time.perf_counter() - t0) * <span class="hljs-number">1000</span>)</code></pre>
+    <ul class="bullets small">
+      <li><code>perf_counter</code> never jumps; <code>time.time</code> follows the wall clock, which can be adjusted.</li>
+      <li>On a GPU, call <code>torch.cuda.synchronize()</code> before reading the clock: the work is asynchronous.</li>
+      <li>One timing is an anecdote. A hundred are a distribution.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Demonstrate in a notebook: time one call five times and show five different numbers. Then ask what Mutaib meant by "it takes 5 ms": which of these numbers?</p></aside>
+</section>
+
+<section class="slide" data-label="Distribution" id="latency-distribution" data-lo="LO6" data-n="18" data-session="2">
+  <div class="kicker">Measured in Lab 1.2: one Waraqa inference, batch 1, 100 calls</div>
+  <h2>Latency has a floor and a long right tail</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">5.7 ms</div><div class="lbl">median</div></div>
+    <div class="stat"><div class="big">7.4 ms</div><div class="lbl">95th percentile</div></div>
+    <div class="stat"><div class="big">8.4 ms</div><div class="lbl">99th percentile</div></div>
+  </div>
+  <div class="callout tip mt"><b>Report the median and the 95th percentile.</b> The mean is pulled up by the tail; a standard deviation assumes a bell curve that latency never has.</div>
+  <aside class="notes"><p>Numbers from the course's run of Lab 1.2 (full mode, four threads, the course laptop). Show the histogram from the notebook if you ran it. A farm agent who checks twenty leaves in a row meets the 95th percentile once.</p></aside>
+</section>
+
+<section class="slide" data-label="Cold start" id="cold-start" data-lo="LO6" data-n="19" data-session="2">
+  <div class="kicker">The first calls</div>
+  <h2>The first call is a different event: report it, do not average it</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">1.3 x</div><div class="lbl">the warm median, for the first call of a freshly loaded model (Lab 1.2)</div></div>
+    <ul class="bullets small">
+      <li>The first call allocates memory, picks kernels and fills caches.</li>
+      <li>A user who opens the app pays it once; a benchmark that includes it in 100 calls hides both numbers.</li>
+      <li>So: warm up, then time; and time the cold start on its own.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>The first call in the course run took 7.5 ms against a warm median of 5.7 ms. Compilers (Day 2) make the first call much slower again; that is why "first call" is a column of the Day 2 table.</p></aside>
+</section>
+
+<section class="slide" data-label="Load" id="background-load" data-lo="LO6" data-n="20" data-session="2">
+  <div class="kicker">Measured in Lab 1.2 with two busy processes</div>
+  <h2>Background load moves the tail before the median</h2>
+  <table class="t">
+    <tr><th>Machine state</th><th class="num">Median ms</th><th class="num">p95 ms</th><th class="num">p99 ms</th></tr>
+    <tr><td>Quiet</td><td class="num">5.7</td><td class="num">7.4</td><td class="num">8.4</td></tr>
+    <tr class="hl"><td>Two processes computing in a loop</td><td class="num">4.3</td><td class="num">9.0</td><td class="num">17.6</td></tr>
+  </table>
+  <p class="small mt">A farm-office laptop runs a browser, a sync client and an antivirus scan. Write what else was running next to every number.</p>
+  <aside class="notes"><p>In the course run the median under load came out lower than the quiet one (4.3 against 5.7 ms): the laptop has more cores than the test kept busy and the quiet run was not perfectly quiet, so read that difference as noise; the tail is what moved, and it doubled at the 99th percentile. On a laptop with more free cores than busy processes the median may barely move while the tail does. On a two-core Colab runtime both move a lot. Ask: which of these numbers would you put in a budget?</p></aside>
+</section>
+
+<section class="slide" data-label="Rule" id="timing-rule" data-lo="LO2 LO6" data-n="21" data-session="2">
+  <div class="kicker">The rule for the week</div>
+  <h2>Warm up, repeat, report percentiles and the conditions</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>1 · Warm up</b>untimed calls first; the cold start reported apart</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>2 · Repeat</b>at least 100 calls on fixed inputs</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>3 · Summarise</b>median and 95th percentile, later with intervals</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>4 · Record</b>processor, threads, power mode, what else ran</div>
+  </div>
+  <aside class="notes"><p>This is the base of LO6's benchmark (Lab 4.2). Intervals come on Day 4; for now, the habit.</p></aside>
+</section>
+
+<section class="slide" data-label="Two tools" id="timers-vs-profilers" data-lo="LO2" data-n="22" data-session="2">
+  <div class="kicker">Timers and profilers</div>
+  <h2>A timer says how long; a profiler says what ran</h2>
+  <div class="cols cols-2">
+    <div class="card c-teal"><h4>Timers</h4><p class="small mb0">Cheap, honest about wall time, blind to what happened inside. Put them around phases you name.</p></div>
+    <div class="card c-coral"><h4>Profilers</h4><p class="small mb0">Record every operator or sample every call stack. Show where time goes inside a phase, with some overhead of their own.</p></div>
+  </div>
+  <div class="callout note mt"><b>Use both.</b> Timers to find the slow phase, a profiler to find why it is slow, timers again to prove the fix.</div>
+  <aside class="notes"><p>Session 3 uses the framework's profiler on a training step; py-spy and Scalene are Python-level profilers that see the data loader too. memray is a memory profiler for Linux and macOS only.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-2" data-lo="LO6" data-n="23" data-session="2">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which number goes in the budget?</h2>
+  <div class="quiz" data-type="single" data-lo="LO6" data-id="checkpoint-2-q1">
+    <p class="lead">100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says "per leaf, in the office". Which number do you compare with it?</p>
+    <div class="opts">
+      <div class="opt" data-why="Uses the mean, which a few slow calls pull up and which hides how often a farmer waits long" data-k="A">The mean, 6.1 ms</div>
+      <div class="opt" data-why="Uses the typical call and ignores the slow one in twenty that the farmer actually notices" data-k="B">The median, 5.2 ms</div>
+      <div class="opt" data-ok data-k="C">The 95th percentile, 9.8 ms, with the cold start reported apart</div>
+      <div class="opt" data-why="Mixes a one-time event into a per-leaf budget; the first call is paid once per session" data-k="D">The first call, 140 ms</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> A budget on a tail percentile protects the slow calls users feel; the cold start is a separate line because it is paid once.</div>
+  </div>
+  <aside class="notes"><p>Answer: C. If the room picks B, ask how many of twenty leaves would be slower than the median: ten.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-1-2" data-auto="lab" data-lab="1.2" data-label="Lab 1.2" data-n="24" data-session="2">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 1.2 · 25 min</div><h2>Noise in one inference</h2><p class="lead small">Time one Waraqa inference 100 times, plot the distribution and show how the first calls and a busy machine change it.</p><a class="nb" href="../labs/D1_2_timing_noise.ipynb">D1_2_timing_noise.ipynb</a></div><ul class="checklist"><li>Time one inference 100 times <span class="min">5 min</span></li><li>Plot the distribution and read its percentiles <span class="min">5 min</span></li><li>Cold start: the first calls against the rest <span class="min">5 min</span></li><li>Background load: repeat while another process computes <span class="min">6 min</span></li><li>Write the timing rule for the course <span class="min">4 min</span></li><li class="stretch">✱ Stretch: Change the thread count and see which percentile moves most</li></ul></div>
+  <aside class="notes"><p>The background-load step starts two Python processes; make sure they are stopped (the cell kills them in a finally block). On Windows the processes appear in the task manager for a few seconds. In Colab the effect is dramatic: two cores, two busy processes. Ask participants to keep their timing rule: Lab 4.2 builds on it.</p></aside>
+</section>
+
+<!-- ======================= SESSION 3 ======================= -->
+<section class="slide section" id="s3" data-auto="section" data-session="3" data-n="25">
+  <div class="kicker">Session 3</div>
+  <h1>Profiling a training step</h1>
+  <ul class="bullets outcomes"><li>Split a training step into loading, forward, backward and optimiser time</li><li>Read a profiler table sorted by self time</li><li>Name the largest bottleneck from the measurements</li></ul>
+  <div class="sess-no">03</div>
+</section>
+
+<section class="slide" data-label="Anatomy" id="step-anatomy" data-lo="LO2" data-n="26" data-session="3">
+  <div class="kicker">A training step</div>
+  <h2>A training step has four phases, and any of them can be the slow one</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>1 · Load</b>read, decode, augment, batch</div>
+    <div class="arrow">→</div>
+    <div class="step c-cyan"><b>2 · Forward</b>compute the loss</div>
+    <div class="arrow">→</div>
+    <div class="step c-purple"><b>3 · Backward</b>compute the gradients</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>4 · Optimiser</b>update the weights</div>
+  </div>
+  <div class="callout warn mt"><b>What goes wrong.</b> Buying a faster processor for a step that waits for its data.</div>
+  <aside class="notes"><p>Backward usually costs about twice the forward pass. The optimiser is small for a small model. Loading is the one people forget: it is not in the model code at all.</p></aside>
+</section>
+
+<section class="slide" data-label="Lina's script" id="lina-script" data-lo="LO2" data-n="27" data-session="3">
+  <div class="kicker">The supplied slow script</div>
+  <h2>Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch</h2>
+  <pre class="code s" data-file="nama.py · FieldExportSlow"><code class="language-python">img = Image.<span class="hljs-built_in">open</span>(<span class="hljs-variable language_">self</span>.folder / name).convert(<span class="hljs-string">&quot;RGB&quot;</span>)   <span class="hljs-comment"># decode a PNG</span>
+img = img.rotate(angle, resample=Image.BILINEAR)       <span class="hljs-comment"># augment at 224 px</span>
+img = img.resize((<span class="hljs-number">64</span>, <span class="hljs-number">64</span>), Image.BILINEAR)             <span class="hljs-comment"># then shrink</span>
+x = torch.tensor(np.array(img), dtype=torch.float32)   <span class="hljs-comment"># one leaf at a time</span>
+<span class="hljs-comment"># ... in the main process: num_workers=0</span></code></pre>
+  <aside class="notes"><p>Do not point out the problems yet: ask the room to predict which phase will be largest and write the guess down. Lab 1.3 checks the guess.</p></aside>
+</section>
+
+<section class="slide" data-label="Timers" id="phase-timers" data-lo="LO2" data-n="28" data-session="3">
+  <div class="kicker">Timers around phases</div>
+  <h2>Four timers split the step; on a GPU, synchronise before each reading</h2>
+  <pre class="code s" data-file="lina_train.py · phase_step"><code class="language-python">t0 = time.perf_counter(); x, y = <span class="hljs-built_in">next</span>(batches)
+t1 = time.perf_counter(); loss = F.cross_entropy(model(x), y)
+t2 = time.perf_counter(); loss.backward()
+t3 = time.perf_counter(); opt.step(); opt.zero_grad()
+t4 = time.perf_counter()
+<span class="hljs-comment"># GPU: torch.cuda.synchronize() before each perf_counter()</span></code></pre>
+  <aside class="notes"><p>Skip the first two steps: they pay for start-up. The lab's run() does this. On a GPU without synchronisation the backward phase looks instantaneous and the next phase pays for it.</p></aside>
+</section>
+
+<section class="slide" data-label="Profiler" id="profiler-table" data-lo="LO2" data-n="29" data-session="3">
+  <div class="kicker">Measured in Lab 1.3 with torch.profiler</div>
+  <h2>The profiler table: sort by self time, read the top rows</h2>
+  <table class="t small">
+    <tr><th>Row</th><th class="num">Self CPU ms</th><th>What it is</th></tr>
+    <tr class="hl"><td><code>enumerate(DataLoader)</code></td><td class="num">879.0</td><td>the loader: reading, decoding and rotating the PNG leaves</td></tr>
+    <tr><td><code>aten::convolution_backward</code></td><td class="num">431.2</td><td>gradients of the six convolutions</td></tr>
+    <tr><td><code>aten::mkldnn_convolution</code></td><td class="num">180.5</td><td>the six convolutions, forward</td></tr>
+    <tr><td><code>aten::max_pool2d_with_indices</code></td><td class="num">41.8</td><td>max pooling, forward</td></tr>
+    <tr><td><code>aten::native_batch_norm</code></td><td class="num">36.1</td><td>batch norm, forward</td></tr>
+  </table>
+  <p class="small mt"><b>Self</b> time is spent in the operator itself; <b>total</b> includes what it calls.</p>
+  <aside class="notes"><p>Rows from the course's run of Lab 1.3 (quick mode excluded; full mode, four threads). The loader appears as one opaque row: the profiler says loading is slow, not why. That is the cue for a Python-level profiler (py-spy, Scalene) in the stretch.</p></aside>
+</section>
+
+<section class="slide" data-label="Ranking" id="lina-ranking" data-lo="LO2" data-n="30" data-session="3">
+  <div class="kicker">Measured in Lab 1.3: median of the timed steps, batch 64</div>
+  <h2>Lina's step is input-bound: loading is the largest phase</h2>
+  <div class="bars">
+    <div class="row"><span>Loading</span><div class="bar c-coral" style="--w:66%"></div><span class="val">1,420 ms, 66%</span></div>
+    <div class="row"><span>Backward</span><div class="bar c-teal" style="--w:18%"></div><span class="val">385 ms, 18%</span></div>
+    <div class="row"><span>Forward</span><div class="bar c-teal" style="--w:16%"></div><span class="val">342 ms, 16%</span></div>
+    <div class="row"><span>Optimiser</span><div class="bar c-teal" style="--w:1%"></div><span class="val">5 ms, 0.2%</span></div>
+  </div>
+  <p class="small mt">One step: 2,142 ms. One epoch of 16,000 leaves at this rate: about 9 minutes.</p>
+  <aside class="notes"><p>Compare with the guesses the room wrote down. If a participant's ranking differs (a very fast disk and processor can make backward the largest), the method still holds: fix the largest measured phase.</p></aside>
+</section>
+
+<section class="slide" data-label="Amdahl" id="amdahl-ceiling" data-lo="LO2" data-n="31" data-session="3">
+  <div class="kicker">The ceiling of a fix</div>
+  <h2>Removing one phase can never beat the sum of the others</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">2.9 x</div><div class="lbl">the most Lina's step can gain if loading cost nothing (Lab 1.3)</div></div>
+    <ul class="bullets small">
+      <li>Speed-up limit = 1 / (1 - share of the phase you fix).</li>
+      <li>Compute this before you start: it says whether the fix is worth a day.</li>
+      <li>After the fix, the next phase is the bottleneck: measure again.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>This is Amdahl's law applied to one step. It also explains why a faster GPU did nothing for Lina: the GPU would only shrink forward and backward.</p></aside>
+</section>
+
+<section class="slide" data-label="Flame graphs" id="flame-graphs" data-lo="LO2" data-n="32" data-session="3">
+  <div class="kicker">Python-level profilers</div>
+  <h2>A flame graph shows the whole program, loader included</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li><b>Sampling profilers</b> (py-spy) read the call stack many times a second; width of a tower is time.</li>
+      <li><b>Scalene</b> separates Python time, native time and memory per line.</li>
+      <li><b>memray</b> tracks every allocation (Linux and macOS only).</li>
+    </ul>
+    <pre class="code s" data-file="from labs/"><code class="language-bash">py-spy record -o artifacts/lina.svg \
+  -- python lina_train.py --steps 10</code></pre>
+  </div>
+  <aside class="notes"><p>The stretch of Lab 1.3. On Linux py-spy may need sudo or --nonblocking; on Windows run it from a normal terminal. Tool names are examples of the slot "Python profilers and memory tools": name the capability first.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-3" data-lo="LO2" data-n="33" data-session="3">
+  <div class="kicker">Checkpoint</div>
+  <h2>What do you fix first?</h2>
+  <div class="quiz" data-type="single" data-lo="LO2" data-id="checkpoint-3-q1">
+    <p class="lead">A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is <code>convolution_backward</code>. What do you work on first?</p>
+    <div class="opts">
+      <div class="opt" data-why="Reads the largest operator row as the largest phase; loading is spread over Python code the table does not break down" data-k="A">The backward convolution, the largest profiler row</div>
+      <div class="opt" data-ok data-k="B">Loading, the largest measured phase</div>
+      <div class="opt" data-why="Optimises the cheapest phase: even removing it entirely saves 2%" data-k="C">The optimiser, by switching to SGD</div>
+      <div class="opt" data-why="Changes the compute roof while the step waits for data; forward and backward are 38%" data-k="D">A faster processor for forward and backward</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> The largest phase sets the ceiling: fixing loading can make the step up to 2.5 times faster, fixing backward at most 1.3 times.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. Make the room compute both ceilings with Amdahl: 1 / 0.4 = 2.5 and 1 / 0.75 = 1.33.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-1-3" data-auto="lab" data-lab="1.3" data-label="Lab 1.3" data-n="34" data-session="3">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 1.3 · 25 min</div><h2>Profile Lina's training step</h2><p class="lead small">Profile one step of the slow training script on the field app's PNG export and rank data loading, forward pass, backward pass and optimiser time.</p><a class="nb" href="../labs/D1_3_profile_step.ipynb">D1_3_profile_step.ipynb</a></div><ul class="checklist"><li>Run the slow script and time its first steps <span class="min">4 min</span></li><li>Time each phase with timers <span class="min">6 min</span></li><li>Profile one step with the framework profiler <span class="min">6 min</span></li><li>Rank the four phases <span class="min">5 min</span></li><li>Name the largest bottleneck <span class="min">4 min</span></li><li class="stretch">✱ Stretch: Record a flame graph of the same script with py-spy</li></ul></div>
+  <aside class="notes"><p>The first run builds the PNG field export (about a minute in quick mode). AI-tutor: an assistant may explain a profiler row, not rank the phases. Usual problems: reading the first two steps (start-up); comparing profiler totals with timer medians (one is one step, the other a median); a laptop on battery.</p></aside>
+</section>
+
+<!-- ======================= SESSION 4 ======================= -->
+<section class="slide section" id="s4" data-auto="section" data-session="4" data-n="35">
+  <div class="kicker">Session 4</div>
+  <h1>Fixing an input-bound pipeline</h1>
+  <ul class="bullets outcomes"><li>Tell an input-bound step from a compute-bound one</li><li>Add parallel loading and a cache of preprocessed data</li><li>Measure the speed-up and say which change bought it</li></ul>
+  <div class="sess-no">04</div>
+</section>
+
+<section class="slide" data-label="Input-bound" id="input-bound" data-lo="LO2" data-n="36" data-session="4">
+  <div class="kicker">Input-bound against compute-bound</div>
+  <h2>A step is input-bound when the model waits for its next batch</h2>
+  <div class="cols cols-2">
+    <div class="card c-coral"><h4>Input-bound</h4><p class="small mb0">Loading is the largest phase. A faster model changes nothing. Fix the pipeline.</p></div>
+    <div class="card c-teal"><h4>Compute-bound</h4><p class="small mb0">Forward and backward dominate. The pipeline is good enough. Days 2 and 3 work here.</p></div>
+  </div>
+  <div class="callout note mt"><b>Signs.</b> A GPU at low utilisation; one core at 100% while others idle; step time that does not change with model size.</div>
+  <aside class="notes"><p>Ask the room how they would tell the two apart without a profiler: replace the loader with random tensors of the right shape. If the step gets much faster, it was input-bound.</p></aside>
+</section>
+
+<section class="slide" data-label="Formats" id="formats-decode" data-lo="LO2" data-n="37" data-session="4">
+  <div class="kicker">Measured in Lab 1.4: one leaf, 50 decodes</div>
+  <h2>Decoding is compute too, and the file format sets its price</h2>
+  <table class="t">
+    <tr><th>Format of one leaf</th><th class="num">Decode ms</th><th class="num">Size kB</th></tr>
+    <tr><td>PNG, 224 pixels (the field app's export)</td><td class="num">1.85</td><td class="num">119</td></tr>
+    <tr class="hl"><td>JPEG quality 90, 64 pixels</td><td class="num">0.17</td><td class="num">1.4</td></tr>
+  </table>
+  <p class="small mt">JPEG is lossy: the two decoded leaves differ by 2.5 of 255 per pixel on average. Whether that matters is a quality question, measured, not seen.</p>
+  <aside class="notes"><p>Most of the gain is the size: the model needs 64 pixels and the export ships 224. The cheapest pixel is the one never stored. Formats for training at scale (WebDataset shards, arrays in one file) follow the same logic: decode once, read bytes.</p></aside>
+</section>
+
+<section class="slide" data-label="Workers" id="parallel-workers" data-lo="LO2" data-n="38" data-session="4">
+  <div class="kicker">Parallel loading and prefetching</div>
+  <h2>Workers prepare the next batches while the model trains on this one</h2>
+  <div class="cols cols-2">
+    <pre class="code s" data-file="Lab 1.4"><code class="language-python">DataLoader(ds, batch_size=<span class="hljs-number">64</span>, shuffle=<span class="hljs-literal">True</span>,
+           num_workers=<span class="hljs-number">4</span>,
+           persistent_workers=<span class="hljs-literal">True</span>,
+           prefetch_factor=<span class="hljs-number">2</span>)</code></pre>
+    <ul class="bullets small">
+      <li>Workers <b>hide</b> loading behind compute; they do not make it cheaper.</li>
+      <li>They take cores the training step also wants.</li>
+      <li>On Windows and macOS each worker is a fresh Python process: the first batch is slow.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>The dataset class must be importable from a module for workers on Windows and macOS (spawned processes import it); that is why the loaders live in nama.py. In a script, put the training under if __name__ == "__main__".</p></aside>
+</section>
+
+<section class="slide" data-label="Cache" id="cache-preprocessed" data-lo="LO2" data-n="39" data-session="4">
+  <div class="kicker">Caching preprocessed data</div>
+  <h2>Decode once, store the 64-pixel bytes, read bytes every epoch</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">50 MB</div><div class="lbl">for 4,096 leaves as one uint8 array, built once in 88 s (Lab 1.4)</div></div>
+    <ul class="bullets small">
+      <li>The cache is right when preprocessing is the same every epoch.</li>
+      <li>It is wrong when augmentation must differ each epoch at full size, or when the data changes faster than the cache.</li>
+    </ul>
+  </div>
+  <div class="callout warn mt"><b>What it changed besides speed.</b> Lina rotated by any angle; the cache rotates by multiples of 90 degrees. A speed-up that changes what the model learns is checked for quality.</div>
+  <aside class="notes"><p>This is the course's recurring trap: every optimisation changes something else. Day 4 is the formal check. Ask the room which other change today might affect quality: the JPEG format.</p></aside>
+</section>
+
+<section class="slide" data-label="Before and after" id="pipeline-before-after" data-lo="LO2" data-n="40" data-session="4">
+  <div class="kicker">Measured in Lab 1.4, full mode</div>
+  <h2>The before-and-after table is the evidence, not the code change</h2>
+  <table class="t small">
+    <tr><th>Pipeline</th><th class="num">Step ms</th><th class="num">Loading ms</th><th class="num">Speed-up</th></tr>
+    <tr><td>Baseline (Lina)</td><td class="num">1,059</td><td class="num">343</td><td class="num">1.0x</td></tr>
+    <tr><td>4 workers</td><td class="num">1,001</td><td class="num">1</td><td class="num">1.1x</td></tr>
+    <tr><td>Cache, main process</td><td class="num">725</td><td class="num">11</td><td class="num">1.5x</td></tr>
+    <tr class="hl"><td>Cache, 4 workers</td><td class="num">693</td><td class="num">0</td><td class="num">1.5x</td></tr>
+  </table>
+  <p class="small mt">When loading is near zero the step is compute-bound: what is left is forward, backward and the optimiser.</p>
+  <aside class="notes"><p>Numbers from the course's run on the course laptop (four threads for the model, up to four workers). This table, with the change explained, is LO2's evidence: a before-and-after profile and a measured speed-up. The baseline here (1,059 ms, 343 ms of loading) is not Lab 1.3's (2,142 ms, 1,420 ms): the two labs were run at different moments on a shared laptop, and loading in the main process suffers most from other programs. Compare rows inside one table only; with this lab's baseline the ceiling for a loading fix is 1,059 / (1,059 - 343), about 1.5 times, which is what the cache reached.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-4" data-lo="LO2" data-n="41" data-session="4">
+  <div class="kicker">Checkpoint</div>
+  <h2>Loading vanished. Why is the step only a little faster?</h2>
+  <div class="quiz" data-type="single" data-lo="LO2" data-id="checkpoint-4-q1">
+    <p class="lead">With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?</p>
+    <div class="opts">
+      <div class="opt" data-why="Assumes the workers failed; the loading phase did drop" data-k="A">The workers are not running</div>
+      <div class="opt" data-why="Blames measurement noise for a 25% change seen on every step" data-k="B">It is timer noise; the real speed-up is larger</div>
+      <div class="opt" data-why="Thinks decoding got cheaper; workers move the work to other cores, they do not reduce it" data-k="C">Decoding became cheaper, but not by enough</div>
+      <div class="opt" data-ok data-k="D">The rest of the step was always about 2,100 ms, and the workers take cores from it</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Hiding loading removes at most its share; what remains is compute, now competing with the workers for cores.</div>
+  </div>
+  <aside class="notes"><p>Answer: D. Tie back to Amdahl's ceiling from Session 3.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-1-4" data-auto="lab" data-lab="1.4" data-label="Lab 1.4" data-n="42" data-session="4">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 1.4 · 25 min</div><h2>Fix the input pipeline</h2><p class="lead small">Add parallel loading, a cache of decoded images and a faster image format to Lina's loader and measure the change in step time.</p><a class="nb" href="../labs/D1_4_input_pipeline.ipynb">D1_4_input_pipeline.ipynb</a></div><ul class="checklist"><li>Baseline: step time and loader time <span class="min">4 min</span></li><li>Parallel workers <span class="min">6 min</span></li><li>Cache the decoded images <span class="min">6 min</span></li><li>A faster image format <span class="min">5 min</span></li><li>The before-and-after table <span class="min">4 min</span></li><li class="stretch">✱ Stretch: Find the worker count after which the step stops getting faster</li></ul></div>
+  <aside class="notes"><p>Run it as a notebook: worker processes need it on Windows and macOS. Usual problems: forgetting persistent_workers (each epoch restarts the workers); timing the first batch with workers (start-up); building the cache in a different order from labels.csv. In Colab, two cores limit what workers can do.</p></aside>
+</section>
+
+<!-- ======================= CLOSING ======================= -->
+<section class="slide" data-label="Recap" id="day-1-recap" data-n="43" data-session="4">
+  <div class="kicker">Day 1 recap</div>
+  <h2>Three things to keep from Day 1</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal"><h4>Know the roof</h4><p class="small mb0">Count FLOPs and bytes; the intensity says whether compute or bandwidth binds.</p></div>
+    <div class="card c-cyan"><h4>Distributions, not numbers</h4><p class="small mb0">Warm up, repeat, report the median and the 95th percentile and the machine.</p></div>
+    <div class="card c-coral"><h4>Largest phase first</h4><p class="small mb0">Time the phases, profile the largest, fix it, measure again.</p></div>
+  </div>
+  <aside class="notes"><p>Ask each table for the one number from today they would show Ghadeer. Good answers: the step time before and after, with the change that bought it.</p></aside>
+</section>
+
+<section class="slide dark" data-label="Tomorrow" id="tomorrow-memory" data-n="44" data-session="4">
+  <div class="kicker">Tomorrow · Day 2</div>
+  <h2>Memory and training efficiency</h2>
+  <p class="lead">Tomorrow you estimate what a training step holds in memory and check it against a measured peak, then test mixed precision, gradient accumulation, activation checkpointing and compilation on Waraqa. Bring your Lab 1.1 peak and bandwidth figures.</p>
+  <aside class="notes"><p>Every Day 2 lab starts from a supplied checkpoint; nobody needs today's outputs. Ask participants to charge their laptops: Day 2 trains.</p></aside>
+</section>
+</div>
+<script type="application/json" id="academy-data">{"v":1,"engine":"1.0.0","build":{"at":"2026-11-15T11:52:37Z","version":"2027.1.0","commit":"71acc15"},"course":{"id":"ae-206","code":"AE-206","title":"Machine Learning Systems on One Machine","track":"ai-engineering","lang":"en","dir":"ltr","url":"https://sdaiaacademy.github.io/ae-206/","repo":"SDAIAAcademy/ae-206","home":"../index.html"},"deck":{"id":"day1","kind":"day","day":1,"label":"Day 1","title":"Measure first","prev":null,"next":"day2.html","md":"day1.md","alt":{}},"sessions":[{"n":1,"label":"Session 1","title":"Compute, memory and bandwidth","slide":"s1","outcomes":["Estimate the FLOPs and bytes moved of a layer","Place a layer on a roofline from its arithmetic intensity","Name the binding limit of a described workload"],"minutes":50,"lab":{"id":"1.1","title":"Two layers on the roofline","minutes":25,"href":"../labs/D1_1_roofline.ipynb"}},{"n":2,"label":"Session 2","title":"Timers, profilers and noise","slide":"s2","outcomes":["Time a call correctly with a monotonic clock and warm-up","Report a distribution with its median and tail percentiles","Show how background load changes the tail"],"minutes":50,"lab":{"id":"1.2","title":"Noise in one inference","minutes":25,"href":"../labs/D1_2_timing_noise.ipynb"}},{"n":3,"label":"Session 3","title":"Profiling a training step","slide":"s3","outcomes":["Split a training step into loading, forward, backward and optimiser time","Read a profiler table sorted by self time","Name the largest bottleneck from the measurements"],"minutes":50,"lab":{"id":"1.3","title":"Profile Lina's training step","minutes":25,"href":"../labs/D1_3_profile_step.ipynb"}},{"n":4,"label":"Session 4","title":"Fixing an input-bound pipeline","slide":"s4","outcomes":["Tell an input-bound step from a compute-bound one","Add parallel loading and a cache of preprocessed data","Measure the speed-up and say which change bought it"],"minutes":50,"lab":{"id":"1.4","title":"Fix the input pipeline","minutes":25,"href":"../labs/D1_4_input_pipeline.ipynb"}}],"slides":[{"id":"title","n":1,"title":"Measure first","kind":"title","session":0,"hash":"9eaf90fc","md":"#### [day1#title] Measure first\n\n*SDAIA Academy · Machine Learning Systems on One Machine*\n\nDay 1: Where time goes, measured before anything is changed\n\nAI Engineering Track · 4 teaching days + capstone day · 4 sessions · 4 labs · AE-206","notes":"Welcome the room. Quick poll: who has trained a network with a hand-written loop (the AE-202 prerequisite)? Who has ever made code faster and been wrong about why? This course has one rule, said on every day: measure before you change anything, and measure again after. Day 1 changes almost nothing: it measures.","minutes":null,"lo":[]},{"id":"four-days-one-machine","n":2,"title":"Four days on one laptop, from raw data to a served prediction","kind":"content","session":0,"hash":"d4b61f69","md":"#### [day1#four-days-one-machine] Four days on one laptop, from raw data to a served prediction\n\n*The course at a glance*\n\n- **Day 1 · Measure first.** The machine's limits, timers, profilers, an input-bound pipeline.\n- **Day 2 · Memory and training.** Where memory goes, mixed precision, accumulation, checkpointing, compilation.\n- **Day 3 · Inference and compression.** Batching, a language model on a laptop, quantisation, pruning.\n- **Day 4 · Export and benchmark.** A portable runtime, a benchmark you can trust, quality by group, a budget.\n\n> **Day 5 · Capstone.** An optimisation study on a model you choose, in a public repository, defended in eight minutes with a live re-run of your benchmark.","notes":"One sentence per day. Name the five capstone criteria (baseline profile 20, changes ordered by measured impact 25, quality re-evaluation 20, benchmark method 20, reproducibility 15) and say that each day builds one of them. Assessment: a supervised entry quiz and exit check without AI (20%), the capstone repository (60%), the live defence (20%); passing is 70% overall with at least 60% on the rubric and on the supervised check.","minutes":null,"lo":[]},{"id":"nama-agritech","n":3,"title":"Nama Agritech: two models on old farm-office laptops","kind":"content","session":0,"hash":"3e66729b","md":"#### [day1#nama-agritech] Nama Agritech: two models on old farm-office laptops\n\n*One case study all week*\n\nA fictional farm-advisory company. Its agents visit farms with a laptop that is several years old, often offline.\n\n- **Waraqa ورقة.** Classifies a photographed leaf into healthy or one of nine diseases, on tomato, cucumber, citrus and date palm.\n- **Hasad حصاد.** A small language model that answers farmers' questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English.\n- **The budget.** Fast enough per leaf, small enough to ship, light on memory, and no quality lost where farmers would notice.","notes":"The people: Ghadeer Al-Shammasi, head of advisory products, sets the budget; Lina Al-Mohaisen, machine learning engineer, wrote the training script you profile today; Mutaib Al-Dhafeeri, field support lead, owns the laptops; Reham Al-Barakati, data protection officer, decides which questions may leave a laptop (Day 3). Participants play Ayman Al-Shahri, the performance engineer. All data is synthetic and generated with a fixed seed: 20,000 leaf images and 2,000 farmer questions. Both models were trained by the course and ship in the repository: nothing is downloaded.","minutes":null,"lo":[]},{"id":"setup-check","n":4,"title":"Run the setup check now: it builds the data and loads both models","kind":"content","session":0,"hash":"b69685e5","md":"#### [day1#setup-check] Run the setup check now: it builds the data and loads both models\n\n*Before Session 1*\n\n1. Colab: open `00_setup_check.ipynb` from the course page and run all cells.\n2. Laptop: `git clone` the course, then in `labs/` run `uv sync` and `uv run jupyter lab`.\n3. The check prints your processor, threads and memory, builds the held-out leaves and answers one farmer question.\n4. Its last line says whether this machine can compile models (Lab 2.4).\n\n- **Quick mode.** Set `NAMA_QUICK=1` for smaller runs. Every solution finishes in minutes on a laptop processor.\n- **Write down your machine.** Every number this week is a number on a machine.","notes":"Make everyone run it before Session 1 reaches its lab. Common failures: \"filename too long\" on Windows (set UV_PROJECT_ENVIRONMENT to a short folder before uv sync, see labs/README.md); a laptop on battery saver (plug it in: timings halve); a corporate proxy blocking the package index (use Colab). The data build takes about a minute; it is cached in labs/cache.","minutes":null,"lo":[]},{"id":"agenda","n":5,"title":"Measure first","kind":"content","session":0,"hash":"89e8ed5b","md":"#### [day1#agenda] Measure first\n\n*Today*\n\n- **Session 1 · Compute, memory and bandwidth**: Compute, memory capacity and bandwidth as the three limits, and the roofline that says which one binds\n- **Session 2 · Timers, profilers and noise**: Timers, warm-up, variance and percentiles: why one timing is never the answer\n- **Session 3 · Profiling a training step**: The anatomy of a training step, read with timers and with the framework's profiler\n- **Session 4 · Fixing an input-bound pipeline**: Decoding, file formats, parallel workers and caching: removing an input bottleneck","notes":"","minutes":null,"lo":[]},{"id":"s1","n":6,"title":"Compute, memory and bandwidth","kind":"section","session":1,"hash":"a3ac9e98","md":"#### [day1#s1] Compute, memory and bandwidth\n\n*Session 1*\n\n- Estimate the FLOPs and bytes moved of a layer\n- Place a layer on a roofline from its arithmetic intensity\n- Name the binding limit of a described workload","notes":"","minutes":null,"lo":["LO1"]},{"id":"three-limits","n":7,"title":"Every step is limited by compute, memory capacity or memory bandwidth","kind":"content","session":1,"hash":"3a063437","md":"#### [day1#three-limits] Every step is limited by compute, memory capacity or memory bandwidth\n\n*What can make a step slow*\n\n- **Compute.** Floating-point operations per second the processor can do. A large matrix product runs into this roof.\n- **Capacity.** Bytes that fit at all. Too many and the run fails, or spills to slower memory. Day 2 is about this one.\n- **Bandwidth.** Bytes per second between memory and the cores. Elementwise layers and decoding one token at a time run into this roof.\n\n> **What goes wrong.** Optimising the limit that does not bind. Fewer FLOPs do not help a step that waits for memory.","notes":"Ask the room for an example of each from their own work: an out-of-memory error is capacity; a GPU at 20% utilisation is often bandwidth or input. The rest of today puts numbers on the laptop's two rates, compute and bandwidth.","minutes":null,"lo":["LO1"]},{"id":"count-flops-bytes","n":8,"title":"Count FLOPs and bytes by hand: it takes two lines","kind":"content","session":1,"hash":"db25cd3b","md":"#### [day1#count-flops-bytes] Count FLOPs and bytes by hand: it takes two lines\n\n*Before any timer*\n\n| Layer | FLOPs | Bytes moved (float32) | Intensity |\n| --- | --- | --- | --- |\n| A · fully connected, batch 512, 1,024 to 1,024 | 2 x 512 x 1,024 x 1,024 = 1.07 G | 4 x (input + weight + output) = 8.4 MB | 128 FLOP/byte |\n| B · add a bias, then ReLU, on 4,096 x 4,096 | 2 per element = 0.034 G | read and write each element = 134 MB | 0.25 FLOP/byte |\n\nArithmetic intensity = FLOPs divided by bytes moved. It is a property of the layer, not of the machine.","notes":"Work layer A on the board before showing the row: one multiply and one add per weight per row of the batch. Then ask the room to do B themselves. These are the two layers of Lab 1.1, and the estimates are AI-off.","minutes":null,"lo":["LO1"]},{"id":"roofline-rule","n":9,"title":"Attainable speed is the lower of two roofs","kind":"content","session":1,"hash":"59dd5e1b","md":"#### [day1#roofline-rule] Attainable speed is the lower of two roofs\n\n*The roofline idea*\n\n- **attainable = min(peak, intensity x bandwidth).** Below the ridge point a layer waits for memory; above it, for arithmetic.\n- **Ridge point = peak / bandwidth.** The intensity at which the two roofs meet.\n\n- A **floor on time**, never a promise: real layers sit under their roof.\n- It tells you **which roof** to push: fewer bytes or fewer FLOPs.\n- Batching raises intensity: the weights are read once for more rows.","notes":"The model is from Williams, Waterman and Patterson's 2008 Berkeley report. Draw it on the board with log axes: a sloped line (bandwidth) that meets a flat line (peak). Sources: Roofline technical report, EECS-2008-134.","minutes":null,"lo":["LO1"]},{"id":"this-laptop","n":10,"title":"A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte","kind":"content","session":1,"hash":"17ac4561","md":"#### [day1#this-laptop] A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte\n\n*Measured in Lab 1.1 on the course's laptop*\n\n- **138** GFLOP/s, a 2,048-square matrix product, 4 threads\n- **33.7** GB/s, a 256 MB copy\n- **4.1** FLOP per byte at the ridge\n\nLayer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a predicted 7.8 ms; B 6.9 ms against 4.0 ms.","notes":"Numbers from the course's run of Lab 1.1 in full mode on an Intel Core Ultra 7 265U laptop under Windows, four threads, with other programs running. Yours will differ: that is the point of measuring. Layer B is slower than its roof, which is normal; ask what the roof leaves out (call overhead, threads waiting, cache misses). Layer A came out faster than its prediction (160 against 138 GFLOP/s): no layer beats the true peak, so the 138 measured with one matrix product on a busy laptop was an underestimate of the peak. Say so: a measured roof is itself a measurement, and the largest rate you have seen is the better estimate of the peak.","minutes":null,"lo":["LO1"]},{"id":"caches-and-reuse","n":11,"title":"Data reused close to the cores is cheap; data fetched from main memory is not","kind":"content","session":1,"hash":"d138e873","md":"#### [day1#caches-and-reuse] Data reused close to the cores is cheap; data fetched from main memory is not\n\n*Caches and data movement*\n\n1. **Registers** a few hundred bytes per core\n2. **L1 and L2 caches** tens of kilobytes to a few megabytes\n3. **Last-level cache** megabytes, shared\n4. **Main memory** gigabytes, the bandwidth you measured\n\n> **Why the matrix product is fast.** It works on tiles that stay in cache and reuses each number many times. The 256 MB copy cannot: it reads everything once.","notes":"Keep the sizes as orders of magnitude; exact figures depend on the processor generation and change every year. The lesson that lasts: an operation's speed depends on how often it reuses what it loaded. Fusion (Day 2) and batching (Day 3) are both ways to reuse data.","minutes":null,"lo":["LO1"]},{"id":"cpu-gpu-npu","n":12,"title":"Each processor trades generality for throughput on dense arithmetic","kind":"content","session":1,"hash":"1c34225c","md":"#### [day1#cpu-gpu-npu] Each processor trades generality for throughput on dense arithmetic\n\n*CPUs, GPUs and neural accelerators*\n\n- **CPU.** Few strong cores with wide vector units. Good at branches, small batches and everything around the model.\n- **GPU.** Thousands of simple lanes and very high memory bandwidth. Needs large, regular work to stay busy.\n- **Neural accelerator.** Fixed-function units for matrix products in low precision, on many new laptops and phones. Needs a runtime that supports it.\n\n> **Same roofline, different numbers.** Each has its own peak and bandwidth, so the same layer can bind differently on each.","notes":"Nama's laptops are processor-only, which is why the course measures on CPUs. The free Colab GPU is optional; on Day 2 participants who try it will see mixed precision behave very differently. Hardware figures go stale fast: keep them off slides and measure.","minutes":null,"lo":["LO1"]},{"id":"analytical-model","n":13,"title":"An analytical model gives the first estimate; the measurement checks it","kind":"content","session":1,"hash":"13f9763c","md":"#### [day1#analytical-model] An analytical model gives the first estimate; the measurement checks it\n\n*Pre-work, used today*\n\n- Pre-work (`labs/prework/`): a reading and a roofline estimate for four workloads, by hand or with a spreadsheet.\n- **MLSys·im**, from the open Machine Learning Systems textbook, models training and inference analytically.\n- An estimate within a factor of two is useful: it says which limit to look at.\n\n- **LO1 evidence.** A worked estimate for each of four workloads that matches the reference within a stated margin, done without AI in the supervised check.","notes":"Collect the pre-work now and pick one participant's estimate to discuss; the four workloads and their reference estimates are in labs/prework/README.md, and an estimate within 20% of the reference counts as matching. Sources: Machine Learning Systems textbook and MLSys·im (mlsysbook.ai). The supervised entry quiz and exit check include such estimates by hand, AI-off.","minutes":null,"lo":["LO1"]},{"id":"checkpoint-1","n":14,"title":"Which layer gets faster with fewer FLOPs?","kind":"quiz","session":1,"hash":"c43e0621","md":"#### [day1#checkpoint-1] Which layer gets faster with fewer FLOPs?\n\n*Checkpoint*\n\n**Question:** On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most?\n\n- A. A matrix product with an intensity of 120 FLOP per byte\n- B. An elementwise ReLU with an intensity of 0.25 FLOP per byte\n- C. A layer sitting exactly at the ridge point\n- D. All three equally, since time is FLOPs over peak","notes":"Answer: A. If many pick \"all three\", go back to the roofline slide and place each layer on it.","minutes":null,"lo":["LO1"]},{"id":"lab-1-1","n":15,"title":"Two layers on the roofline","kind":"lab","session":1,"hash":"d9093e9e","md":"#### [day1#lab-1-1] Two layers on the roofline\n\nLab 1.1 · 25 min\n\nMeasure the laptop's peak compute and bandwidth, estimate the arithmetic intensity of a matrix product and an elementwise layer, predict which one is memory-bound, then time both and place them on a roofline.\n\n[D1_1_roofline.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D1_1_roofline.ipynb)\n\n- [ ] Measure peak compute with a large matrix product (5 min)\n- [ ] Measure bandwidth with a large copy (4 min)\n- [ ] Estimate FLOPs and bytes of both layers by hand (6 min)\n- [ ] Predict, then time both layers (5 min)\n- [ ] Place both on the roofline (5 min)\n- [ ] ✱ Stretch: Repeat the matrix product at batch 1 and watch it slide under the bandwidth roof","notes":"AI-off for the estimates of task 3. Ask participants to close heavy programs. Usual problems: forgetting that a copy moves bytes twice (read and write); reading the first, cold timing; comparing their laptop's numbers with a neighbour's instead of with their own roof. In Colab the CPU runtime has two cores: the numbers are much lower, and that is fine.","minutes":null,"lo":[]},{"id":"s2","n":16,"title":"Timers, profilers and noise","kind":"section","session":2,"hash":"643dcfe1","md":"#### [day1#s2] Timers, profilers and noise\n\n*Session 2*\n\n- Time a call correctly with a monotonic clock and warm-up\n- Report a distribution with its median and tail percentiles\n- Show how background load changes the tail","notes":"","minutes":null,"lo":["LO2","LO6"]},{"id":"right-clock","n":17,"title":"Time with a monotonic clock, around the call, many times","kind":"content","session":2,"hash":"bbfa377e","md":"#### [day1#right-clock] Time with a monotonic clock, around the call, many times\n\n*Timers*\n\n```python\n# file: Lab 1.2\nms = []\nfor _ in range(100):\n    t0 = time.perf_counter()\n    with torch.no_grad():\n        model(leaf)\n    ms.append((time.perf_counter() - t0) * 1000)\n```\n\n- `perf_counter` never jumps; `time.time` follows the wall clock, which can be adjusted.\n- On a GPU, call `torch.cuda.synchronize()` before reading the clock: the work is asynchronous.\n- One timing is an anecdote. A hundred are a distribution.","notes":"Demonstrate in a notebook: time one call five times and show five different numbers. Then ask what Mutaib meant by \"it takes 5 ms\": which of these numbers?","minutes":null,"lo":["LO2","LO6"]},{"id":"latency-distribution","n":18,"title":"Latency has a floor and a long right tail","kind":"content","session":2,"hash":"ca65c771","md":"#### [day1#latency-distribution] Latency has a floor and a long right tail\n\n*Measured in Lab 1.2: one Waraqa inference, batch 1, 100 calls*\n\n- **5.7 ms** median\n- **7.4 ms** 95th percentile\n- **8.4 ms** 99th percentile\n\n> **Report the median and the 95th percentile.** The mean is pulled up by the tail; a standard deviation assumes a bell curve that latency never has.","notes":"Numbers from the course's run of Lab 1.2 (full mode, four threads, the course laptop). Show the histogram from the notebook if you ran it. A farm agent who checks twenty leaves in a row meets the 95th percentile once.","minutes":null,"lo":["LO6"]},{"id":"cold-start","n":19,"title":"The first call is a different event: report it, do not average it","kind":"content","session":2,"hash":"b2f141dd","md":"#### [day1#cold-start] The first call is a different event: report it, do not average it\n\n*The first calls*\n\n**1.3 x** the warm median, for the first call of a freshly loaded model (Lab 1.2)\n\n- The first call allocates memory, picks kernels and fills caches.\n- A user who opens the app pays it once; a benchmark that includes it in 100 calls hides both numbers.\n- So: warm up, then time; and time the cold start on its own.","notes":"The first call in the course run took 7.5 ms against a warm median of 5.7 ms. Compilers (Day 2) make the first call much slower again; that is why \"first call\" is a column of the Day 2 table.","minutes":null,"lo":["LO6"]},{"id":"background-load","n":20,"title":"Background load moves the tail before the median","kind":"content","session":2,"hash":"b1fc0215","md":"#### [day1#background-load] Background load moves the tail before the median\n\n*Measured in Lab 1.2 with two busy processes*\n\n| Machine state | Median ms | p95 ms | p99 ms |\n| --- | --- | --- | --- |\n| Quiet | 5.7 | 7.4 | 8.4 |\n| Two processes computing in a loop | 4.3 | 9.0 | 17.6 |\n\nA farm-office laptop runs a browser, a sync client and an antivirus scan. Write what else was running next to every number.","notes":"In the course run the median under load came out lower than the quiet one (4.3 against 5.7 ms): the laptop has more cores than the test kept busy and the quiet run was not perfectly quiet, so read that difference as noise; the tail is what moved, and it doubled at the 99th percentile. On a laptop with more free cores than busy processes the median may barely move while the tail does. On a two-core Colab runtime both move a lot. Ask: which of these numbers would you put in a budget?","minutes":null,"lo":["LO6"]},{"id":"timing-rule","n":21,"title":"Warm up, repeat, report percentiles and the conditions","kind":"content","session":2,"hash":"891676c4","md":"#### [day1#timing-rule] Warm up, repeat, report percentiles and the conditions\n\n*The rule for the week*\n\n1. **1 · Warm up** untimed calls first; the cold start reported apart\n2. **2 · Repeat** at least 100 calls on fixed inputs\n3. **3 · Summarise** median and 95th percentile, later with intervals\n4. **4 · Record** processor, threads, power mode, what else ran","notes":"This is the base of LO6's benchmark (Lab 4.2). Intervals come on Day 4; for now, the habit.","minutes":null,"lo":["LO2","LO6"]},{"id":"timers-vs-profilers","n":22,"title":"A timer says how long; a profiler says what ran","kind":"content","session":2,"hash":"575cb94b","md":"#### [day1#timers-vs-profilers] A timer says how long; a profiler says what ran\n\n*Timers and profilers*\n\n- **Timers.** Cheap, honest about wall time, blind to what happened inside. Put them around phases you name.\n- **Profilers.** Record every operator or sample every call stack. Show where time goes inside a phase, with some overhead of their own.\n\n> **Use both.** Timers to find the slow phase, a profiler to find why it is slow, timers again to prove the fix.","notes":"Session 3 uses the framework's profiler on a training step; py-spy and Scalene are Python-level profilers that see the data loader too. memray is a memory profiler for Linux and macOS only.","minutes":null,"lo":["LO2"]},{"id":"checkpoint-2","n":23,"title":"Which number goes in the budget?","kind":"quiz","session":2,"hash":"f4275259","md":"#### [day1#checkpoint-2] Which number goes in the budget?\n\n*Checkpoint*\n\n**Question:** 100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says \"per leaf, in the office\". Which number do you compare with it?\n\n- A. The mean, 6.1 ms\n- B. The median, 5.2 ms\n- C. The 95th percentile, 9.8 ms, with the cold start reported apart\n- D. The first call, 140 ms","notes":"Answer: C. If the room picks B, ask how many of twenty leaves would be slower than the median: ten.","minutes":null,"lo":["LO6"]},{"id":"lab-1-2","n":24,"title":"Noise in one inference","kind":"lab","session":2,"hash":"b17335fd","md":"#### [day1#lab-1-2] Noise in one inference\n\nLab 1.2 · 25 min\n\nTime one Waraqa inference 100 times, plot the distribution and show how the first calls and a busy machine change it.\n\n[D1_2_timing_noise.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D1_2_timing_noise.ipynb)\n\n- [ ] Time one inference 100 times (5 min)\n- [ ] Plot the distribution and read its percentiles (5 min)\n- [ ] Cold start: the first calls against the rest (5 min)\n- [ ] Background load: repeat while another process computes (6 min)\n- [ ] Write the timing rule for the course (4 min)\n- [ ] ✱ Stretch: Change the thread count and see which percentile moves most","notes":"The background-load step starts two Python processes; make sure they are stopped (the cell kills them in a finally block). On Windows the processes appear in the task manager for a few seconds. In Colab the effect is dramatic: two cores, two busy processes. Ask participants to keep their timing rule: Lab 4.2 builds on it.","minutes":null,"lo":[]},{"id":"s3","n":25,"title":"Profiling a training step","kind":"section","session":3,"hash":"c5a7bccf","md":"#### [day1#s3] Profiling a training step\n\n*Session 3*\n\n- Split a training step into loading, forward, backward and optimiser time\n- Read a profiler table sorted by self time\n- Name the largest bottleneck from the measurements","notes":"","minutes":null,"lo":["LO2"]},{"id":"step-anatomy","n":26,"title":"A training step has four phases, and any of them can be the slow one","kind":"content","session":3,"hash":"cc881025","md":"#### [day1#step-anatomy] A training step has four phases, and any of them can be the slow one\n\n*A training step*\n\n1. **1 · Load** read, decode, augment, batch\n2. **2 · Forward** compute the loss\n3. **3 · Backward** compute the gradients\n4. **4 · Optimiser** update the weights\n\n> **What goes wrong.** Buying a faster processor for a step that waits for its data.","notes":"Backward usually costs about twice the forward pass. The optimiser is small for a small model. Loading is the one people forget: it is not in the model code at all.","minutes":null,"lo":["LO2"]},{"id":"lina-script","n":27,"title":"Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch","kind":"content","session":3,"hash":"06f6a8d5","md":"#### [day1#lina-script] Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch\n\n*The supplied slow script*\n\n```python\n# file: nama.py · FieldExportSlow\nimg = Image.open(self.folder / name).convert(\"RGB\")   # decode a PNG\nimg = img.rotate(angle, resample=Image.BILINEAR)       # augment at 224 px\nimg = img.resize((64, 64), Image.BILINEAR)             # then shrink\nx = torch.tensor(np.array(img), dtype=torch.float32)   # one leaf at a time\n# ... in the main process: num_workers=0\n```","notes":"Do not point out the problems yet: ask the room to predict which phase will be largest and write the guess down. Lab 1.3 checks the guess.","minutes":null,"lo":["LO2"]},{"id":"phase-timers","n":28,"title":"Four timers split the step; on a GPU, synchronise before each reading","kind":"content","session":3,"hash":"4c175ccf","md":"#### [day1#phase-timers] Four timers split the step; on a GPU, synchronise before each reading\n\n*Timers around phases*\n\n```python\n# file: lina_train.py · phase_step\nt0 = time.perf_counter(); x, y = next(batches)\nt1 = time.perf_counter(); loss = F.cross_entropy(model(x), y)\nt2 = time.perf_counter(); loss.backward()\nt3 = time.perf_counter(); opt.step(); opt.zero_grad()\nt4 = time.perf_counter()\n# GPU: torch.cuda.synchronize() before each perf_counter()\n```","notes":"Skip the first two steps: they pay for start-up. The lab's run() does this. On a GPU without synchronisation the backward phase looks instantaneous and the next phase pays for it.","minutes":null,"lo":["LO2"]},{"id":"profiler-table","n":29,"title":"The profiler table: sort by self time, read the top rows","kind":"content","session":3,"hash":"f89f19d6","md":"#### [day1#profiler-table] The profiler table: sort by self time, read the top rows\n\n*Measured in Lab 1.3 with torch.profiler*\n\n| Row | Self CPU ms | What it is |\n| --- | --- | --- |\n| `enumerate(DataLoader)` | 879.0 | the loader: reading, decoding and rotating the PNG leaves |\n| `aten::convolution_backward` | 431.2 | gradients of the six convolutions |\n| `aten::mkldnn_convolution` | 180.5 | the six convolutions, forward |\n| `aten::max_pool2d_with_indices` | 41.8 | max pooling, forward |\n| `aten::native_batch_norm` | 36.1 | batch norm, forward |\n\n**Self** time is spent in the operator itself; **total** includes what it calls.","notes":"Rows from the course's run of Lab 1.3 (quick mode excluded; full mode, four threads). The loader appears as one opaque row: the profiler says loading is slow, not why. That is the cue for a Python-level profiler (py-spy, Scalene) in the stretch.","minutes":null,"lo":["LO2"]},{"id":"lina-ranking","n":30,"title":"Lina's step is input-bound: loading is the largest phase","kind":"content","session":3,"hash":"45e06d05","md":"#### [day1#lina-ranking] Lina's step is input-bound: loading is the largest phase\n\n*Measured in Lab 1.3: median of the timed steps, batch 64*\n\n| Item | Value |\n| --- | --- |\n| Loading | 1,420 ms, 66% |\n| Backward | 385 ms, 18% |\n| Forward | 342 ms, 16% |\n| Optimiser | 5 ms, 0.2% |\n\nOne step: 2,142 ms. One epoch of 16,000 leaves at this rate: about 9 minutes.","notes":"Compare with the guesses the room wrote down. If a participant's ranking differs (a very fast disk and processor can make backward the largest), the method still holds: fix the largest measured phase.","minutes":null,"lo":["LO2"]},{"id":"amdahl-ceiling","n":31,"title":"Removing one phase can never beat the sum of the others","kind":"content","session":3,"hash":"711d8b47","md":"#### [day1#amdahl-ceiling] Removing one phase can never beat the sum of the others\n\n*The ceiling of a fix*\n\n**2.9 x** the most Lina's step can gain if loading cost nothing (Lab 1.3)\n\n- Speed-up limit = 1 / (1 - share of the phase you fix).\n- Compute this before you start: it says whether the fix is worth a day.\n- After the fix, the next phase is the bottleneck: measure again.","notes":"This is Amdahl's law applied to one step. It also explains why a faster GPU did nothing for Lina: the GPU would only shrink forward and backward.","minutes":null,"lo":["LO2"]},{"id":"flame-graphs","n":32,"title":"A flame graph shows the whole program, loader included","kind":"content","session":3,"hash":"254be6fe","md":"#### [day1#flame-graphs] A flame graph shows the whole program, loader included\n\n*Python-level profilers*\n\n- **Sampling profilers** (py-spy) read the call stack many times a second; width of a tower is time.\n- **Scalene** separates Python time, native time and memory per line.\n- **memray** tracks every allocation (Linux and macOS only).\n\n```bash\n# file: from labs/\npy-spy record -o artifacts/lina.svg \\\n  -- python lina_train.py --steps 10\n```","notes":"The stretch of Lab 1.3. On Linux py-spy may need sudo or --nonblocking; on Windows run it from a normal terminal. Tool names are examples of the slot \"Python profilers and memory tools\": name the capability first.","minutes":null,"lo":["LO2"]},{"id":"checkpoint-3","n":33,"title":"What do you fix first?","kind":"quiz","session":3,"hash":"4d0afa54","md":"#### [day1#checkpoint-3] What do you fix first?\n\n*Checkpoint*\n\n**Question:** A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is `convolution_backward`. What do you work on first?\n\n- A. The backward convolution, the largest profiler row\n- B. Loading, the largest measured phase\n- C. The optimiser, by switching to SGD\n- D. A faster processor for forward and backward","notes":"Answer: B. Make the room compute both ceilings with Amdahl: 1 / 0.4 = 2.5 and 1 / 0.75 = 1.33.","minutes":null,"lo":["LO2"]},{"id":"lab-1-3","n":34,"title":"Profile Lina's training step","kind":"lab","session":3,"hash":"692d66c9","md":"#### [day1#lab-1-3] Profile Lina's training step\n\nLab 1.3 · 25 min\n\nProfile one step of the slow training script on the field app's PNG export and rank data loading, forward pass, backward pass and optimiser time.\n\n[D1_3_profile_step.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D1_3_profile_step.ipynb)\n\n- [ ] Run the slow script and time its first steps (4 min)\n- [ ] Time each phase with timers (6 min)\n- [ ] Profile one step with the framework profiler (6 min)\n- [ ] Rank the four phases (5 min)\n- [ ] Name the largest bottleneck (4 min)\n- [ ] ✱ Stretch: Record a flame graph of the same script with py-spy","notes":"The first run builds the PNG field export (about a minute in quick mode). AI-tutor: an assistant may explain a profiler row, not rank the phases. Usual problems: reading the first two steps (start-up); comparing profiler totals with timer medians (one is one step, the other a median); a laptop on battery.","minutes":null,"lo":[]},{"id":"s4","n":35,"title":"Fixing an input-bound pipeline","kind":"section","session":4,"hash":"f3adb035","md":"#### [day1#s4] Fixing an input-bound pipeline\n\n*Session 4*\n\n- Tell an input-bound step from a compute-bound one\n- Add parallel loading and a cache of preprocessed data\n- Measure the speed-up and say which change bought it","notes":"","minutes":null,"lo":["LO2"]},{"id":"input-bound","n":36,"title":"A step is input-bound when the model waits for its next batch","kind":"content","session":4,"hash":"449b13f6","md":"#### [day1#input-bound] A step is input-bound when the model waits for its next batch\n\n*Input-bound against compute-bound*\n\n- **Input-bound.** Loading is the largest phase. A faster model changes nothing. Fix the pipeline.\n- **Compute-bound.** Forward and backward dominate. The pipeline is good enough. Days 2 and 3 work here.\n\n> **Signs.** A GPU at low utilisation; one core at 100% while others idle; step time that does not change with model size.","notes":"Ask the room how they would tell the two apart without a profiler: replace the loader with random tensors of the right shape. If the step gets much faster, it was input-bound.","minutes":null,"lo":["LO2"]},{"id":"formats-decode","n":37,"title":"Decoding is compute too, and the file format sets its price","kind":"content","session":4,"hash":"bb1a9954","md":"#### [day1#formats-decode] Decoding is compute too, and the file format sets its price\n\n*Measured in Lab 1.4: one leaf, 50 decodes*\n\n| Format of one leaf | Decode ms | Size kB |\n| --- | --- | --- |\n| PNG, 224 pixels (the field app's export) | 1.85 | 119 |\n| JPEG quality 90, 64 pixels | 0.17 | 1.4 |\n\nJPEG is lossy: the two decoded leaves differ by 2.5 of 255 per pixel on average. Whether that matters is a quality question, measured, not seen.","notes":"Most of the gain is the size: the model needs 64 pixels and the export ships 224. The cheapest pixel is the one never stored. Formats for training at scale (WebDataset shards, arrays in one file) follow the same logic: decode once, read bytes.","minutes":null,"lo":["LO2"]},{"id":"parallel-workers","n":38,"title":"Workers prepare the next batches while the model trains on this one","kind":"content","session":4,"hash":"f8dc2aeb","md":"#### [day1#parallel-workers] Workers prepare the next batches while the model trains on this one\n\n*Parallel loading and prefetching*\n\n```python\n# file: Lab 1.4\nDataLoader(ds, batch_size=64, shuffle=True,\n           num_workers=4,\n           persistent_workers=True,\n           prefetch_factor=2)\n```\n\n- Workers **hide** loading behind compute; they do not make it cheaper.\n- They take cores the training step also wants.\n- On Windows and macOS each worker is a fresh Python process: the first batch is slow.","notes":"The dataset class must be importable from a module for workers on Windows and macOS (spawned processes import it); that is why the loaders live in nama.py. In a script, put the training under if __name__ == \"__main__\".","minutes":null,"lo":["LO2"]},{"id":"cache-preprocessed","n":39,"title":"Decode once, store the 64-pixel bytes, read bytes every epoch","kind":"content","session":4,"hash":"b306ee77","md":"#### [day1#cache-preprocessed] Decode once, store the 64-pixel bytes, read bytes every epoch\n\n*Caching preprocessed data*\n\n**50 MB** for 4,096 leaves as one uint8 array, built once in 88 s (Lab 1.4)\n\n- The cache is right when preprocessing is the same every epoch.\n- It is wrong when augmentation must differ each epoch at full size, or when the data changes faster than the cache.\n\n> **What it changed besides speed.** Lina rotated by any angle; the cache rotates by multiples of 90 degrees. A speed-up that changes what the model learns is checked for quality.","notes":"This is the course's recurring trap: every optimisation changes something else. Day 4 is the formal check. Ask the room which other change today might affect quality: the JPEG format.","minutes":null,"lo":["LO2"]},{"id":"pipeline-before-after","n":40,"title":"The before-and-after table is the evidence, not the code change","kind":"content","session":4,"hash":"9a382f8c","md":"#### [day1#pipeline-before-after] The before-and-after table is the evidence, not the code change\n\n*Measured in Lab 1.4, full mode*\n\n| Pipeline | Step ms | Loading ms | Speed-up |\n| --- | --- | --- | --- |\n| Baseline (Lina) | 1,059 | 343 | 1.0x |\n| 4 workers | 1,001 | 1 | 1.1x |\n| Cache, main process | 725 | 11 | 1.5x |\n| Cache, 4 workers | 693 | 0 | 1.5x |\n\nWhen loading is near zero the step is compute-bound: what is left is forward, backward and the optimiser.","notes":"Numbers from the course's run on the course laptop (four threads for the model, up to four workers). This table, with the change explained, is LO2's evidence: a before-and-after profile and a measured speed-up. The baseline here (1,059 ms, 343 ms of loading) is not Lab 1.3's (2,142 ms, 1,420 ms): the two labs were run at different moments on a shared laptop, and loading in the main process suffers most from other programs. Compare rows inside one table only; with this lab's baseline the ceiling for a loading fix is 1,059 / (1,059 - 343), about 1.5 times, which is what the cache reached.","minutes":null,"lo":["LO2"]},{"id":"checkpoint-4","n":41,"title":"Loading vanished. Why is the step only a little faster?","kind":"quiz","session":4,"hash":"5a79ead3","md":"#### [day1#checkpoint-4] Loading vanished. Why is the step only a little faster?\n\n*Checkpoint*\n\n**Question:** With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?\n\n- A. The workers are not running\n- B. It is timer noise; the real speed-up is larger\n- C. Decoding became cheaper, but not by enough\n- D. The rest of the step was always about 2,100 ms, and the workers take cores from it","notes":"Answer: D. Tie back to Amdahl's ceiling from Session 3.","minutes":null,"lo":["LO2"]},{"id":"lab-1-4","n":42,"title":"Fix the input pipeline","kind":"lab","session":4,"hash":"c773b809","md":"#### [day1#lab-1-4] Fix the input pipeline\n\nLab 1.4 · 25 min\n\nAdd parallel loading, a cache of decoded images and a faster image format to Lina's loader and measure the change in step time.\n\n[D1_4_input_pipeline.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D1_4_input_pipeline.ipynb)\n\n- [ ] Baseline: step time and loader time (4 min)\n- [ ] Parallel workers (6 min)\n- [ ] Cache the decoded images (6 min)\n- [ ] A faster image format (5 min)\n- [ ] The before-and-after table (4 min)\n- [ ] ✱ Stretch: Find the worker count after which the step stops getting faster","notes":"Run it as a notebook: worker processes need it on Windows and macOS. Usual problems: forgetting persistent_workers (each epoch restarts the workers); timing the first batch with workers (start-up); building the cache in a different order from labels.csv. In Colab, two cores limit what workers can do.","minutes":null,"lo":[]},{"id":"day-1-recap","n":43,"title":"Three things to keep from Day 1","kind":"content","session":4,"hash":"8bba1ef0","md":"#### [day1#day-1-recap] Three things to keep from Day 1\n\n*Day 1 recap*\n\n- **Know the roof.** Count FLOPs and bytes; the intensity says whether compute or bandwidth binds.\n- **Distributions, not numbers.** Warm up, repeat, report the median and the 95th percentile and the machine.\n- **Largest phase first.** Time the phases, profile the largest, fix it, measure again.","notes":"Ask each table for the one number from today they would show Ghadeer. Good answers: the step time before and after, with the change that bought it.","minutes":null,"lo":[]},{"id":"tomorrow-memory","n":44,"title":"Memory and training efficiency","kind":"content","session":4,"hash":"3d7208e1","md":"#### [day1#tomorrow-memory] Memory and training efficiency\n\n*Tomorrow · Day 2*\n\nTomorrow you estimate what a training step holds in memory and check it against a measured peak, then test mixed precision, gradient accumulation, activation checkpointing and compilation on Waraqa. Bring your Lab 1.1 peak and bandwidth figures.","notes":"Every Day 2 lab starts from a supplied checkpoint; nobody needs today's outputs. Ask participants to charge their laptops: Day 2 trains.","minutes":null,"lo":[]}],"activities":[{"id":"checkpoint-1-q1","slide":"checkpoint-1","type":"single","prompt":"On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most?","options":[{"key":"A","text":"A matrix product with an intensity of 120 FLOP per byte"},{"key":"B","text":"An elementwise ReLU with an intensity of 0.25 FLOP per byte"},{"key":"C","text":"A layer sitting exactly at the ridge point"},{"key":"D","text":"All three equally, since time is FLOPs over peak"}],"correct":[0],"explanation":"Only a compute-bound layer, far above the ridge, spends its time on arithmetic; halving its FLOPs nearly halves its time.","misconceptions":["","Thinks fewer FLOPs always help: this layer waits for memory, so its time hardly moves","Confuses the ridge point with the best place to be: at the ridge both roofs bind, so halving FLOPs leaves the memory roof","Assumes time is FLOPs divided by peak for every layer, ignoring the bandwidth roof"],"lo":["LO1"]},{"id":"checkpoint-2-q1","slide":"checkpoint-2","type":"single","prompt":"100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says \"per leaf, in the office\". Which number do you compare with it?","options":[{"key":"A","text":"The mean, 6.1 ms"},{"key":"B","text":"The median, 5.2 ms"},{"key":"C","text":"The 95th percentile, 9.8 ms, with the cold start reported apart"},{"key":"D","text":"The first call, 140 ms"}],"correct":[2],"explanation":"A budget on a tail percentile protects the slow calls users feel; the cold start is a separate line because it is paid once.","misconceptions":["Uses the mean, which a few slow calls pull up and which hides how often a farmer waits long","Uses the typical call and ignores the slow one in twenty that the farmer actually notices","","Mixes a one-time event into a per-leaf budget; the first call is paid once per session"],"lo":["LO6"]},{"id":"checkpoint-3-q1","slide":"checkpoint-3","type":"single","prompt":"A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is convolution_backward. What do you work on first?","options":[{"key":"A","text":"The backward convolution, the largest profiler row"},{"key":"B","text":"Loading, the largest measured phase"},{"key":"C","text":"The optimiser, by switching to SGD"},{"key":"D","text":"A faster processor for forward and backward"}],"correct":[1],"explanation":"The largest phase sets the ceiling: fixing loading can make the step up to 2.5 times faster, fixing backward at most 1.3 times.","misconceptions":["Reads the largest operator row as the largest phase; loading is spread over Python code the table does not break down","","Optimises the cheapest phase: even removing it entirely saves 2%","Changes the compute roof while the step waits for data; forward and backward are 38%"],"lo":["LO2"]},{"id":"checkpoint-4-q1","slide":"checkpoint-4","type":"single","prompt":"With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?","options":[{"key":"A","text":"The workers are not running"},{"key":"B","text":"It is timer noise; the real speed-up is larger"},{"key":"C","text":"Decoding became cheaper, but not by enough"},{"key":"D","text":"The rest of the step was always about 2,100 ms, and the workers take cores from it"}],"correct":[3],"explanation":"Hiding loading removes at most its share; what remains is compute, now competing with the workers for cores.","misconceptions":["Assumes the workers failed; the loading phase did drop","Blames measurement noise for a 25% change seen on every step","Thinks decoding got cheaper; workers move the work to other cores, they do not reduce it",""],"lo":["LO2"]}],"ai":{"context":{"course":"../context/course.md","courseJs":"../context/course.js","day":"day1.md","llms":"../llms.txt"},"tasks":[],"tools":[]},"bridge":{"allowedOrigins":[]},"features":{},"strings":{}}</script>
+<script src="../_engine/academy.js"></script>
+</body>
+</html>

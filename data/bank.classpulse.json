@@ -1,0 +1,1703 @@
+{
+  "format": "classpulse-bank",
+  "version": 1,
+  "course": {
+    "name": "Machine Learning Systems on One Machine",
+    "los": [
+      {
+        "code": "LO1",
+        "description": "Explain how compute, memory capacity and memory bandwidth limit training and inference, and identify which one binds for a described workload, given four workload descriptions with model size, batch size and hardware figures"
+      },
+      {
+        "code": "LO2",
+        "description": "Measure where time goes in a data pipeline and a training step with profilers and timers, and remove the largest bottleneck, given a slow training script for the leaf-image model"
+      },
+      {
+        "code": "LO3",
+        "description": "Compute the memory needed for weights, activations, optimiser state and the key-value cache and check each estimate against measured peak memory, given a small vision model and a small language model at three batch sizes and context lengths"
+      },
+      {
+        "code": "LO4",
+        "description": "Apply mixed precision, batching and compilation and report their effect on speed, memory and accuracy, given the training and inference scripts and a fixed test set"
+      },
+      {
+        "code": "LO5",
+        "description": "Apply post-training quantisation and pruning, export the model to a portable runtime and compare size, latency and quality with the original, given the trained classifier, a small language model and a held-out evaluation set"
+      },
+      {
+        "code": "LO6",
+        "description": "Prepare a benchmark that controls warm-up, repetitions, batch size and input mix, and report percentiles with confidence intervals, given two model variants and a target laptop"
+      },
+      {
+        "code": "LO7",
+        "description": "Optimise a model and its serving path to meet a stated latency and memory budget on a target device while keeping quality within an agreed tolerance, given a budget set by the company for its farm-office laptops and a quality floor on the held-out set"
+      }
+    ]
+  },
+  "questions": [
+    {
+      "id": "checkpoint-1-q1",
+      "type": "single",
+      "prompt": "On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most?",
+      "options": [
+        "A matrix product with an intensity of 120 FLOP per byte",
+        "An elementwise ReLU with an intensity of 0.25 FLOP per byte",
+        "A layer sitting exactly at the ridge point",
+        "All three equally, since time is FLOPs over peak"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO1"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Only a compute-bound layer, far above the ridge, spends its time on arithmetic; halving its FLOPs nearly halves its time.",
+      "misconceptions": [
+        "",
+        "Thinks fewer FLOPs always help: this layer waits for memory, so its time hardly moves",
+        "Confuses the ridge point with the best place to be: at the ridge both roofs bind, so halving FLOPs leaves the memory roof",
+        "Assumes time is FLOPs divided by peak for every layer, ignoring the bandwidth roof"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 14
+    },
+    {
+      "id": "checkpoint-2-q1",
+      "type": "single",
+      "prompt": "100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says \"per leaf, in the office\". Which number do you compare with it?",
+      "options": [
+        "The mean, 6.1 ms",
+        "The median, 5.2 ms",
+        "The 95th percentile, 9.8 ms, with the cold start reported apart",
+        "The first call, 140 ms"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "A budget on a tail percentile protects the slow calls users feel; the cold start is a separate line because it is paid once.",
+      "misconceptions": [
+        "Uses the mean, which a few slow calls pull up and which hides how often a farmer waits long",
+        "Uses the typical call and ignores the slow one in twenty that the farmer actually notices",
+        "",
+        "Mixes a one-time event into a per-leaf budget; the first call is paid once per session"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 23
+    },
+    {
+      "id": "checkpoint-3-q1",
+      "type": "single",
+      "prompt": "A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is convolution_backward. What do you work on first?",
+      "options": [
+        "The backward convolution, the largest profiler row",
+        "Loading, the largest measured phase",
+        "The optimiser, by switching to SGD",
+        "A faster processor for forward and backward"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The largest phase sets the ceiling: fixing loading can make the step up to 2.5 times faster, fixing backward at most 1.3 times.",
+      "misconceptions": [
+        "Reads the largest operator row as the largest phase; loading is spread over Python code the table does not break down",
+        "",
+        "Optimises the cheapest phase: even removing it entirely saves 2%",
+        "Changes the compute roof while the step waits for data; forward and backward are 38%"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 33
+    },
+    {
+      "id": "checkpoint-4-q1",
+      "type": "single",
+      "prompt": "With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it?",
+      "options": [
+        "The workers are not running",
+        "It is timer noise; the real speed-up is larger",
+        "Decoding became cheaper, but not by enough",
+        "The rest of the step was always about 2,100 ms, and the workers take cores from it"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Hiding loading removes at most its share; what remains is compute, now competing with the workers for cores.",
+      "misconceptions": [
+        "Assumes the workers failed; the loading phase did drop",
+        "Blames measurement noise for a 25% change seen on every step",
+        "Thinks decoding got cheaper; workers move the work to other cores, they do not reduce it",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 41
+    },
+    {
+      "id": "review-day-1-q1",
+      "type": "single",
+      "prompt": "Lina says her new loader made training \"much faster\". She shows one epoch timed before (31 min) and one after (24 min), each run once, on different days. What do you ask for?",
+      "options": [
+        "Nothing: 7 minutes is too large to be noise",
+        "Phase times of both loaders over the same steps on the same machine, start-up excluded",
+        "The framework profiler's operator table for the new loader",
+        "The roofline estimate of the loader"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "A before-and-after claim needs both sides measured the same way: same steps, same machine, start-up excluded, per phase so the change is explained.",
+      "misconceptions": [
+        "Accepts one run per side, which cannot separate the change from the day's load and the cold start",
+        "",
+        "Asks for an operator table, which does not show the Python loader's work at all",
+        "Trusts a theoretical figure where a measurement is cheap and decisive"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 3
+    },
+    {
+      "id": "checkpoint-1-q1",
+      "type": "single",
+      "prompt": "Waraqa's step peaks at 1,000 MB at batch 256, of which about 10 MB is weights, gradients and optimiser state. Predict the peak at batch 512.",
+      "options": [
+        "About 1,010 MB: only the batch's input grows",
+        "About 4,000 MB: memory grows with the square of the batch",
+        "About 3,000 MB: the optimiser state triples",
+        "About 2,000 MB: the activations double, the fixed part does not"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Activations are per leaf, so they scale linearly with the batch; parameters, gradients and optimiser state do not depend on it.",
+      "misconceptions": [
+        "Thinks the fixed part dominates; here it is 1% of the total",
+        "Doubles twice, as if memory grew with the square of the batch",
+        "Believes the optimiser state scales with the batch; it scales with the parameters",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 10
+    },
+    {
+      "id": "checkpoint-2-q1",
+      "type": "single",
+      "prompt": "On a laptop whose processor reports AVX2 only, bfloat16 autocast made Waraqa's training step slower with the same accuracy. What is the best explanation?",
+      "options": [
+        "The model is too small to benefit from any optimisation",
+        "bfloat16 lost precision, so the step had to do more work",
+        "The processor has no native bfloat16 arithmetic, so each operation pays for conversions",
+        "The optimiser now runs in bfloat16 and needs more steps"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Without native support the lower precision is emulated: numbers are converted to float32 to compute and back, which adds work instead of saving it.",
+      "misconceptions": [
+        "Blames the model's size; the cost comes from converting formats, whatever the size",
+        "Confuses precision with correctness; accuracy was the same",
+        "",
+        "Thinks autocast also changes the optimiser; the weights stay in float32"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 18
+    },
+    {
+      "id": "checkpoint-3-q1",
+      "type": "single",
+      "prompt": "A language model of 2 B parameters does not fit for training on a 24 GB GPU even at batch 1. Will activation checkpointing make it fit?",
+      "options": [
+        "Unlikely: weights, gradients and AdamW state already need about 32 GB, which checkpointing does not touch",
+        "Yes: checkpointing reduces all training memory",
+        "Not alone, but gradient accumulation will",
+        "Yes, if the checkpoints are written to disk"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Checkpointing and accumulation both cut activation memory only; the 16 bytes per parameter of float32 AdamW stay.",
+      "misconceptions": [
+        "",
+        "Thinks checkpointing reduces every part of memory; it only touches activations",
+        "Thinks accumulation reduces weights or optimiser state; it only splits the batch",
+        "Confuses checkpointing activations with saving the model to disk"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 26
+    },
+    {
+      "id": "checkpoint-4-q1",
+      "type": "single",
+      "prompt": "Compiling Waraqa costs 20 s on the first call and saves 2 ms per batch. The field app starts, classifies about 50 leaves, and closes. Should it compile at start-up?",
+      "options": [
+        "Yes: 2 ms per batch is a 20% gain",
+        "No: 50 leaves save well under a second, and the agent waits 20 s at every start",
+        "No: compilation lowers accuracy",
+        "Yes: the gain grows the longer the laptop runs"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The first call is repaid only after about 10,000 batches in one process; a short-lived app never gets there. A long-running service, or a cached compiled artefact, does.",
+      "misconceptions": [
+        "Looks at the per-call gain alone and ignores who pays the first call",
+        "",
+        "Thinks compilation changes the model's accuracy; fused code computes the same function",
+        "Assumes the gain grows with time; it is per call and the app makes few calls"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 34
+    },
+    {
+      "id": "review-day-2-q1",
+      "type": "single",
+      "prompt": "Waraqa's training peak at batch 256 is about 40 times its weights, gradients and optimiser state together. Which change cuts that peak most, at the same effective batch?",
+      "options": [
+        "Switching AdamW for SGD to drop the optimiser state",
+        "Accumulating four micro-batches of 64",
+        "Storing the weights in 16 bits",
+        "Folding batch norm into the convolutions"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Activations dominate and scale with the batch held at once; accumulation holds a quarter of them.",
+      "misconceptions": [
+        "Optimiser state is a few megabytes here; activations are the bulk",
+        "",
+        "Fewer weight bytes do not touch the activations that dominate",
+        "Folding is an inference transformation; it does not apply while batch norm is training"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 3
+    },
+    {
+      "id": "checkpoint-1-q1",
+      "type": "single",
+      "prompt": "Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?",
+      "options": [
+        "16, for the throughput",
+        "4, a compromise",
+        "1: requests are rare, so any larger batch adds seconds of waiting",
+        "64, the cheapest per leaf"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "At one leaf every two seconds, a batch of b makes leaves wait for b - 1 arrivals; only batch 1 meets a budget in milliseconds.",
+      "misconceptions": [
+        "Optimises throughput, which the office does not need; the first leaf would wait for fifteen more",
+        "Splits the difference without measuring the wait; a batch of 4 still waits for three more leaves",
+        "",
+        "Thinks the largest batch is always cheapest per leaf and therefore best"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 9
+    },
+    {
+      "id": "checkpoint-2-q1",
+      "type": "single",
+      "prompt": "Farm agents start pasting a week of farm notes (2,000 characters) before each question. On a model with a context of 4,096 tokens, what changes most?",
+      "options": [
+        "The memory of the model's weights",
+        "Tokens per second, which fall in proportion to the context",
+        "The number of tokens in the answer",
+        "The time to first token and the size of the key-value cache"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Prefill processes every prompt token and the cache stores each one; decoding adds one token at a time.",
+      "misconceptions": [
+        "Thinks the weights grow with the prompt; they are fixed",
+        "Expects decoding to slow in proportion; each decode step adds one token and reads the cache, which grows only modestly",
+        "Thinks a longer prompt makes the answer longer; answer length depends on the question",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 19
+    },
+    {
+      "id": "checkpoint-3-q1",
+      "type": "single",
+      "prompt": "Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next?",
+      "options": [
+        "Put intervals on the overall and per-crop differences, and compare them with the floor per crop",
+        "Ship it: 0.6 points is within a 1-point floor",
+        "Reject it: any crop that loses is unacceptable",
+        "Recalibrate with twice as many leaves and ship that"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Compression changes errors unevenly; a per-group loss on a small group needs an interval before a decision. That is Lab 4.3.",
+      "misconceptions": [
+        "",
+        "Accepts on the overall number and ignores the group that lost most",
+        "Rejects on a point estimate from about 200 leaves without asking how uncertain it is",
+        "Assumes more calibration data always fixes a group's loss, before measuring whether the loss is real"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 28
+    },
+    {
+      "id": "checkpoint-4-q1",
+      "type": "single",
+      "prompt": "You set half of Waraqa's convolution weights to zero by magnitude. Accuracy barely changes and latency does not change at all. Why?",
+      "options": [
+        "The pruning did not take effect",
+        "The dense kernels still multiply every weight, zero or not",
+        "Batch norm undoes the pruning at inference",
+        "Only the classifier head determines latency"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Unstructured zeros keep every matrix the same size; only removing whole channels, or a sparse kernel, reduces work.",
+      "misconceptions": [
+        "Thinks the zeros were not applied; counting them would show they were",
+        "",
+        "Blames batch norm, which is unaffected by weight masking",
+        "Assumes latency is dominated by the head; the convolutions do almost all the work"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 35
+    },
+    {
+      "id": "review-day-3-q1",
+      "type": "single",
+      "prompt": "Hasad's 4-bit file is about a sixth of the 32-bit file's size. Loaded with \"expand once\", it decodes no faster than the 32-bit model once the machine is quiet. Why?",
+      "options": [
+        "The 4-bit file holds the same bytes as the 32-bit one",
+        "At load the weights became float32 again, so each decode step reads as many bytes as before",
+        "The key-value cache got larger in 4 bits",
+        "The tokenizer is slower for quantised models"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Decoding at batch 1 is memory-bound; speed comes from reading fewer bytes per token, which needs kernels that compute on the 4-bit blocks.",
+      "misconceptions": [
+        "Thinks the file did not shrink; the size was measured",
+        "",
+        "Blames the cache, which is the same size in both runs",
+        "Thinks the tokenizer depends on the precision; it does not change"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 3
+    },
+    {
+      "id": "checkpoint-1-q1",
+      "type": "single",
+      "prompt": "The exported Waraqa gives different classes from PyTorch on field photos. Feeding both the identical input tensor, their logits agree within 1e-6. Where is the fault?",
+      "options": [
+        "In the exported file: re-export with another opset",
+        "In the preprocessing: the two pipelines build different tensors from the same photo",
+        "In floating-point rounding inside the runtime",
+        "In the model's training, which must be redone"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Identical inputs, identical outputs: the model half is proven, so the difference is in how each side turns a photo into a tensor.",
+      "misconceptions": [
+        "Ignores the test just run: identical inputs gave identical outputs, so the file is right",
+        "",
+        "Blames rounding, which the 1e-6 agreement rules out as the cause of different classes",
+        "Confuses a runtime fault with a training problem; the PyTorch model is the reference here"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 11
+    },
+    {
+      "id": "checkpoint-2-q1",
+      "type": "single",
+      "prompt": "The 8-bit median is 3% lower than the 32-bit median, and the two 95% intervals overlap by most of their width. What is the honest report?",
+      "options": [
+        "On this machine at batch 1 the two are not distinguishable; the 8-bit file is smaller",
+        "The 8-bit model is 3% faster",
+        "The two models are exactly as fast",
+        "Repeat until the intervals separate, then report the difference"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Overlapping intervals mean the data cannot separate the two; report that, and the differences you can show (size).",
+      "misconceptions": [
+        "",
+        "Reports the point estimates as if they settled the question",
+        "Turns overlapping intervals into a claim of equality, which they do not prove",
+        "Keeps measuring until a difference appears, which inflates false findings"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 19
+    },
+    {
+      "id": "checkpoint-3-q1",
+      "type": "single",
+      "prompt": "A variant loses 0.4 points overall, interval [-1.3, +0.5], and 1.0 point on date palm, interval [-4.0, +2.0]. The floor is 1 point overall and 2 per crop. What is the verdict?",
+      "options": [
+        "Accept: both losses are within the floor",
+        "Reject: the intervals go below the floor",
+        "Uncertain: the estimates pass but both intervals reach below the floor",
+        "Accept overall; per-crop intervals do not matter"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The data are consistent with a loss beyond the floor; more evidence is needed before the variant ships.",
+      "misconceptions": [
+        "Reads only the point estimates, which do pass, and ignores the intervals",
+        "Treats an interval reaching below the floor as proof of a loss below it",
+        "",
+        "Thinks a paired test is needed only overall; groups are where losses hide"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 26
+    },
+    {
+      "id": "checkpoint-4-q1",
+      "type": "single",
+      "prompt": "Variant A is the fastest but fails the quality floor on date palm. Variant B meets every line, with a p95 of 14.9 ms against a 15 ms budget, measured on the course laptop. What do you recommend?",
+      "options": [
+        "A, because speed matters most in the field",
+        "B, with no further condition",
+        "Neither: keep the 32-bit model until something is faster",
+        "B, with its margin stated and a re-run on a farm-office laptop before it ships"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO7"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "B meets the budget on the measured machine; a 0.1 ms margin is inside the noise of another laptop, so the target device has the last word.",
+      "misconceptions": [
+        "Puts speed before a quality floor the company set",
+        "Treats a 0.1 ms margin on another machine as settled",
+        "Rejects a variant that meets every line because its margin is small",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000,
+      "slide": 34
+    },
+    {
+      "id": "q-lo1-ridge",
+      "type": "single",
+      "prompt": "A laptop measures 80 GFLOP/s on a large matrix product and 25 GB/s on a large copy. A layer does 0.5 FLOP per byte moved. Which limit binds it?",
+      "options": [
+        "Memory bandwidth, since 0.5 is far below the ridge point of 3.2",
+        "Compute, since 80 GFLOP/s is the smaller-looking number",
+        "Neither: the layer sits exactly on the ridge",
+        "Memory capacity, since the layer moves bytes"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO1"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The ridge point is 80 / 25 = 3.2 FLOP per byte; a layer at 0.5 is below it, so it waits for memory.",
+      "misconceptions": [
+        "",
+        "Compares units that cannot be compared instead of computing the ridge point",
+        "Miscomputes the ridge point",
+        "Confuses how much fits (capacity) with how fast bytes move (bandwidth)"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo1-batch1",
+      "type": "single",
+      "prompt": "A language model decodes one token at a time for one user. Each step reads all 2 GB of weights and does about 4 GFLOP. On a machine with 50 GB/s and 500 GFLOP/s, what is the lower bound on time per token?",
+      "options": [
+        "About 8 ms, set by compute",
+        "About 40 ms, set by reading the weights",
+        "About 4 ms, the average of the two",
+        "About 0.4 ms, set by the cache"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO1"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Reading 2 GB at 50 GB/s takes 40 ms; computing 4 GFLOP at 500 GFLOP/s takes 8 ms. The larger bound wins.",
+      "misconceptions": [
+        "Takes the compute bound when the memory bound is larger",
+        "",
+        "Averages two bounds instead of taking the larger",
+        "Ignores the weights, which every step must read"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo1-batching-intensity",
+      "type": "single",
+      "prompt": "Why does serving 16 leaves in one batch raise a fully connected layer's arithmetic intensity compared with one leaf?",
+      "options": [
+        "The layer does fewer FLOPs per leaf in a batch",
+        "Batching compresses the activations",
+        "The weights are read once and used for 16 rows instead of one",
+        "The processor runs at a higher clock speed for batches"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO1"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "FLOPs grow with the batch while the weight bytes are read once, so FLOPs per byte rise.",
+      "misconceptions": [
+        "Thinks batching removes arithmetic; it shares weight reads",
+        "Invents a compression step that batching does not do",
+        "",
+        "Attributes the gain to clock speed instead of data reuse"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo1-capacity",
+      "type": "single",
+      "prompt": "A team plans to train a 3 B parameter model in float32 with AdamW on a GPU with 40 GB. Before counting activations, does it fit?",
+      "options": [
+        "Yes: 3 B parameters are 12 GB",
+        "Yes, with room for a large batch",
+        "It depends only on the batch size",
+        "No: weights, gradients and AdamW state need about 48 GB"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO1"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "16 bytes per parameter for float32 weights, gradients and two AdamW moments: 3 B x 16 = 48 GB.",
+      "misconceptions": [
+        "Counts the weights only",
+        "Ignores gradients and optimiser state",
+        "Forgets the fixed part that does not depend on the batch",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo2-largest-phase",
+      "type": "single",
+      "prompt": "Phase timers on a training step: loading 300 ms, forward 120 ms, backward 240 ms, optimiser 20 ms. What is the largest speed-up possible by making the backward pass free?",
+      "options": [
+        "About 1.5 times",
+        "About 3 times",
+        "About 2 times",
+        "It cannot be known without a profiler"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The step is 680 ms; without backward it is 440 ms, so at most 680 / 440, about 1.5 times.",
+      "misconceptions": [
+        "",
+        "Divides by the backward share instead of what remains",
+        "Assumes backward is half the step",
+        "Thinks Amdahl's ceiling needs operator detail; phase times suffice"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo2-workers",
+      "type": "single",
+      "prompt": "Adding four DataLoader workers made the loading phase almost vanish but the step only 20% faster. What should you do next?",
+      "options": [
+        "Add more workers",
+        "Profile forward and backward: the step is now compute-bound",
+        "Switch to a faster disk",
+        "Remove the workers, since the gain is small"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Once loading hides behind compute, the remaining phases set the step time; they are the next target.",
+      "misconceptions": [
+        "Keeps fixing a phase that is no longer the bottleneck",
+        "",
+        "Fixes storage when loading is already hidden",
+        "Throws away a measured gain"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo2-profiler-opaque",
+      "type": "single",
+      "prompt": "In a framework profiler table, the data loader appears as one row with no detail inside. Which tool shows where its time goes?",
+      "options": [
+        "The same profiler, sorted by total time",
+        "A roofline estimate",
+        "A sampling Python profiler such as py-spy, or Scalene",
+        "A memory profiler"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The loader is Python and image-library code; a Python-level profiler samples those call stacks.",
+      "misconceptions": [
+        "Re-sorting cannot reveal detail that was never recorded",
+        "An estimate does not observe a running program",
+        "",
+        "Memory tools answer a different question"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo2-cache-tradeoff",
+      "type": "single",
+      "prompt": "Caching decoded 64-pixel images made training three times faster. What must be checked before adopting it?",
+      "options": [
+        "Nothing: a faster step is always better",
+        "That the cache file is compressed",
+        "That the GPU is busy",
+        "That the augmentation and image quality did not change what the model learns"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO2"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The cache changed the augmentation (90-degree rotations); a change that alters inputs must be re-evaluated for accuracy.",
+      "misconceptions": [
+        "Ignores that speed-ups can change training",
+        "Optimises disk space, which was not the question",
+        "Checks a resource the laptop does not use",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo3-kv",
+      "type": "single",
+      "prompt": "A model has 24 layers, 8 key-value heads of 128 numbers, and stores its cache in 16 bits. How large is the key-value cache for 2,048 tokens?",
+      "options": [
+        "About 50 MB",
+        "About 200 MB",
+        "About 400 MB",
+        "About 800 MB"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "2 x 24 x (8 x 128) x 2,048 x 2 bytes is about 201 MB.",
+      "misconceptions": [
+        "Forgets the factor 2 for keys and values and the 2 bytes",
+        "",
+        "Counts 4 bytes per number for a 16-bit cache",
+        "Counts query heads too"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo3-activations-scale",
+      "type": "single",
+      "prompt": "A training step peaks at 900 MB at batch 128; weights, gradients and optimiser state are 20 MB. What peak do you predict at batch 32?",
+      "options": [
+        "About 240 MB",
+        "About 900 MB",
+        "About 450 MB",
+        "About 30 MB"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Activations (about 880 MB) scale with the batch: 880 / 4 + 20 is about 240 MB.",
+      "misconceptions": [
+        "",
+        "Thinks memory does not depend on the batch",
+        "Halves instead of quartering",
+        "Forgets the activations scale, not vanish"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo3-gap",
+      "type": "single",
+      "prompt": "Your estimate of saved activations is 20% below what autograd hooks count. Which omission is the likeliest?",
+      "options": [
+        "The weights",
+        "Max pooling's indices, stored as 8-byte integers, and the input batch",
+        "The optimiser state",
+        "The loss value"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Pooling keeps the positions of its maxima for the backward pass, as 64-bit integers, and the input is saved by the first layer.",
+      "misconceptions": [
+        "Weights are not activations",
+        "",
+        "Optimiser state is not saved by autograd",
+        "A single number cannot explain 20%"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo3-checkpointing",
+      "type": "single",
+      "prompt": "Which part of training memory does activation checkpointing reduce?",
+      "options": [
+        "Weights",
+        "Gradients",
+        "Activations kept for the backward pass",
+        "Optimiser state"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO3"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "It keeps only some activations and recomputes the rest; parameters, gradients and optimiser state are untouched.",
+      "misconceptions": [
+        "Thinks checkpointing compresses weights",
+        "Thinks it drops gradients",
+        "",
+        "Thinks it touches the optimiser"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo4-bf16",
+      "type": "single",
+      "prompt": "On a processor without native bfloat16 arithmetic, bfloat16 autocast made training slower at equal accuracy. What is the right report?",
+      "options": [
+        "Mixed precision does not work",
+        "The model is too small",
+        "Accuracy must have dropped",
+        "On this processor bfloat16 is emulated, so it costs time; on hardware with native support it can be faster"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The speed-up depends on hardware support; the report names the hardware and what was measured.",
+      "misconceptions": [
+        "Generalises one machine's result to all hardware",
+        "Blames model size without evidence",
+        "Contradicts the measured accuracy",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo4-accumulate",
+      "type": "single",
+      "prompt": "With gradient accumulation over 4 micro-batches and plain SGD, a participant forgets to divide each loss by 4. What happens?",
+      "options": [
+        "Each update is four times too large, as if the learning rate were four times higher",
+        "Nothing: the optimiser normalises",
+        "The gradients cancel out",
+        "Memory use quadruples"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Summed gradients of four un-scaled losses are four times the gradient of the mean loss.",
+      "misconceptions": [
+        "",
+        "Thinks the optimiser rescales gradients by the batch",
+        "Confuses summing with cancelling",
+        "Memory depends on the micro-batch, not on the loss scale"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo4-compile",
+      "type": "single",
+      "prompt": "Compiling a model costs 15 s on the first call and saves 1.5 ms per call. After how many calls in one process is the cost repaid?",
+      "options": [
+        "About 100",
+        "About 1,000",
+        "About 10,000",
+        "Never"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "15,000 ms divided by 1.5 ms per call is 10,000 calls.",
+      "misconceptions": [
+        "Off by two orders of magnitude",
+        "Off by one order of magnitude",
+        "",
+        "Ignores that a steady gain repays a fixed cost eventually"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo4-fold",
+      "type": "single",
+      "prompt": "Why can batch norm be folded into the preceding convolution at inference but not during training?",
+      "options": [
+        "Folding only works on GPUs",
+        "At inference it uses fixed stored statistics, so it is a constant affine map",
+        "Training needs the extra memory",
+        "Batch norm has no weights at inference"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO4"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "In training batch norm uses each batch's statistics, which change every step.",
+      "misconceptions": [
+        "Folding is arithmetic and works on any device",
+        "",
+        "Memory is not the reason",
+        "Batch norm keeps its scale and shift at inference"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo5-structured",
+      "type": "single",
+      "prompt": "Which change makes a convolutional network faster on a standard dense runtime?",
+      "options": [
+        "Zeroing half of the weights by magnitude",
+        "Storing weights as float64",
+        "Removing half of the filters of each convolution",
+        "Adding dropout"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Removing filters shrinks every matrix; zeros in a dense matrix are still multiplied.",
+      "misconceptions": [
+        "Assumes dense kernels skip zeros",
+        "More bytes per number only slows the model",
+        "",
+        "Dropout is inactive at inference"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo5-calibration",
+      "type": "single",
+      "prompt": "A static 8-bit model loses 6 points on date palm and almost nothing on tomato. The calibration set was 256 tomato leaves. What is the likeliest cause?",
+      "options": [
+        "8 bits are too few for any classifier",
+        "The model was exported in training mode",
+        "Date palm leaves are larger",
+        "Activation ranges learnt from tomato leaves do not fit date-palm leaves"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Calibration sets the integer ranges; an unrepresentative set clips or wastes range for other groups.",
+      "misconceptions": [
+        "Generalises from one group's loss to all classifiers",
+        "Would affect all crops, not one",
+        "Leaf size is not what quantisation depends on",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo5-parity",
+      "type": "single",
+      "prompt": "After export, the runtime's logits differ from PyTorch's by up to 3e-6 on 500 leaves, with the same class everywhere. The tolerance stated in advance is 1e-4. What do you conclude?",
+      "options": [
+        "Parity holds: the differences are rounding from fused and reordered operations",
+        "The export is wrong: outputs must be identical",
+        "The runtime uses a different model",
+        "Run it on one more leaf to be sure"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Floating-point results agree to rounding, not bit for bit; the stated tolerance is met on many inputs.",
+      "misconceptions": [
+        "",
+        "Expects bit-exact results from a runtime that reorders operations",
+        "Different models would disagree far more",
+        "One more leaf adds nothing to 500"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo5-paired",
+      "type": "single",
+      "prompt": "Two models are compared on the same 2,000 leaves. Why use a paired comparison rather than two separate accuracy intervals?",
+      "options": [
+        "It needs fewer leaves to label",
+        "Each leaf's difficulty cancels out, so the difference is measured more precisely",
+        "It always shows the new model is better",
+        "It ignores the leaves both models get right"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO5"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Pairing compares the models leaf by leaf; only disagreements carry information about the difference.",
+      "misconceptions": [
+        "Labelling is the same either way",
+        "",
+        "A test does not favour either model",
+        "Ignoring agreements is a consequence, not the reason"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo6-percentile",
+      "type": "single",
+      "prompt": "100 timed calls: mean 7 ms, median 5 ms, 95th percentile 14 ms. Which pair describes the latency a user feels?",
+      "options": [
+        "Mean and standard deviation",
+        "Minimum and maximum",
+        "Median and 95th percentile",
+        "Mean and median"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Latency distributions are skewed with a long tail; the median and a tail percentile describe them.",
+      "misconceptions": [
+        "Assumes a bell curve that latency does not follow",
+        "Extremes are dominated by single events",
+        "",
+        "Both describe the centre only"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo6-warmup",
+      "type": "single",
+      "prompt": "A benchmark's first call takes 120 ms and the next 99 average 5 ms. How should the report treat the first call?",
+      "options": [
+        "Average it with the others",
+        "Drop it and never mention it",
+        "Repeat until the first call is fast",
+        "Report it separately as the cold start, and exclude it from the steady-state percentiles"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "The first call is a different event, paid once; mixing it in hides both numbers.",
+      "misconceptions": [
+        "Mixes a one-time event into a per-call statistic",
+        "Hides a cost the user pays",
+        "Cannot change what a cold start is",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo6-rerun",
+      "type": "single",
+      "prompt": "Your neighbour re-runs your benchmark and gets a median 30% higher. Which is the most useful first check?",
+      "options": [
+        "Whether their laptop was on battery or under load, and the thread count",
+        "Whether your code has a bug",
+        "Whether 30% is within the bootstrap interval",
+        "Whether they used a newer Python"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Conditions (power mode, load, threads) are the commonest cause of large re-run gaps; the report should record them.",
+      "misconceptions": [
+        "",
+        "Assumes a code error before checking conditions",
+        "A within-run interval does not cover a different machine's conditions",
+        "A possible factor, but less likely than power and load"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo6-mix",
+      "type": "single",
+      "prompt": "Why does the course's benchmark cycle through a saved file of 40 leaves in fixed crop shares?",
+      "options": [
+        "To make the benchmark slower",
+        "So a re-run sees the same inputs, and the inputs resemble the field",
+        "Because ONNX Runtime needs exactly 40 inputs",
+        "To test accuracy at the same time"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO6"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "A fixed, representative input mix makes the benchmark repeatable and relevant.",
+      "misconceptions": [
+        "Speed of the benchmark is not the goal",
+        "",
+        "The runtime takes any number of inputs",
+        "Accuracy is measured separately, on the held-out set"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo7-budget",
+      "type": "single",
+      "prompt": "Budget: p95 at most 15 ms, file at most 1 MB, quality within 1 point. Variant A: 9 ms, 0.3 MB, -2.5 points. Variant B: 13 ms, 0.4 MB, -0.4 points. Variant C: 8 ms, 1.2 MB, -0.1 points. Which meets the budget?",
+      "options": [
+        "A",
+        "B",
+        "C",
+        "None"
+      ],
+      "key": {
+        "indices": [
+          1
+        ]
+      },
+      "lo": [
+        "LO7"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Only B meets all three lines: A fails quality, C fails size.",
+      "misconceptions": [
+        "Picks the fastest and ignores quality",
+        "",
+        "Ignores the size limit",
+        "Misreads B's numbers"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo7-order",
+      "type": "single",
+      "prompt": "An optimisation log lists: quantisation (-30% p95), batch norm folding (-3%), thread pinning (no effect), input resizing (-55%). How should it be ordered in the report?",
+      "options": [
+        "In the order the changes were tried",
+        "Alphabetically",
+        "Input resizing, quantisation, folding, thread pinning",
+        "Without thread pinning, since it did nothing"
+      ],
+      "key": {
+        "indices": [
+          2
+        ]
+      },
+      "lo": [
+        "LO7"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Changes are ordered by measured impact, largest first; null results stay in the log.",
+      "misconceptions": [
+        "Order of trial hides what mattered",
+        "Alphabetical order carries no information",
+        "",
+        "Dropping null results loses evidence"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo7-energy",
+      "type": "single",
+      "prompt": "A participant reports '0.04 Wh per 1,000 predictions' with no further detail. What is missing?",
+      "options": [
+        "Nothing: it is a measurement",
+        "The model's accuracy",
+        "The number of parameters",
+        "The assumed power draw and the timing it was computed from"
+      ],
+      "key": {
+        "indices": [
+          3
+        ]
+      },
+      "lo": [
+        "LO7"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "Without a power meter energy is an estimate from time and assumed watts; both must be stated.",
+      "misconceptions": [
+        "Mistakes an estimate for a measurement",
+        "Relevant elsewhere, not to the energy figure",
+        "Parameters do not determine energy directly",
+        ""
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    },
+    {
+      "id": "q-lo7-margin",
+      "type": "single",
+      "prompt": "A variant meets the 15 ms p95 budget at 14.8 ms on the course laptop. What belongs in the recommendation?",
+      "options": [
+        "The margin, and a re-run on a target farm-office laptop before shipping",
+        "Ship it: it meets the budget",
+        "Reject it: the margin is too small",
+        "Lower the budget to 14 ms"
+      ],
+      "key": {
+        "indices": [
+          0
+        ]
+      },
+      "lo": [
+        "LO7"
+      ],
+      "weight": 1,
+      "scored": true,
+      "timer": 30,
+      "displayMode": "full",
+      "explanation": "A 0.2 ms margin is within the noise of another machine; the target device has the last word.",
+      "misconceptions": [
+        "",
+        "Treats a small margin on another machine as settled",
+        "Rejects a variant that meets every line",
+        "Moves the goalposts instead of measuring"
+      ],
+      "liveContext": false,
+      "basis": "best",
+      "confidence": true,
+      "createdAt": 1794743557000,
+      "updatedAt": 1794743557000
+    }
+  ]
+}

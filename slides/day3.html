@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-ax="deck" data-track="ai-engineering">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 3 · Inference and compression · Machine Learning Systems on One Machine</title>
+<meta name="generator" content="SDAIA Academy engine 1.0.0">
+<link rel="icon" href="../_engine/icon.svg">
+<link rel="alternate" type="text/markdown" href="day3.md">
+<link rel="describedby" href="../llms.txt">
+<link rel="stylesheet" href="../_engine/academy.css">
+</head>
+<body>
+<div class="deck" data-course="Machine Learning Systems on One Machine" data-track="ai-engineering" data-day="Day 3">
+<!-- ======================= OPENING ======================= -->
+<section class="slide title" id="title" data-auto="title" data-label="Welcome" data-n="1">
+  <div class="kicker">SDAIA Academy · Machine Learning Systems on One Machine</div>
+  <h1>Inference and compression</h1>
+  <p class="lead mt">Day 3: Serving one prediction fast, then making the model smaller</p>
+  <div class="meta"><span class="track">AI Engineering Track</span><span>4 teaching days + capstone day</span><span>4 sessions · 4 labs</span><span>AE-206</span></div>
+  <aside class="notes"><p>Days 1 and 2 were about training. Today is about the moment a farm agent photographs a leaf or asks a question and waits. Two numbers matter to that agent: how long the answer takes and whether it is right. Every change today is measured on both.</p></aside>
+</section>
+
+<section class="slide" id="agenda" data-auto="agenda" data-label="Agenda" data-n="2">
+  <div class="kicker">Today</div>
+  <h2>Inference and compression</h2>
+  <div class="agenda"><div class="item"><div><b>Session 1 · Latency, throughput and batching</b><small>Latency against throughput, batching and the queue that batching creates</small></div></div><div class="item"><div><b>Session 2 · Language model inference on a laptop</b><small>Prefill and decode, the key-value cache and its arithmetic, and which questions may leave the device</small></div></div><div class="item"><div><b>Session 3 · Quantisation</b><small>Quantisation formats, scales and calibration, for a classifier and a language model</small></div></div><div class="item"><div><b>Session 4 · Pruning or a smaller model</b><small>Unstructured and structured pruning, a smaller architecture, and distillation as an idea</small></div></div></div>
+</section>
+
+<section class="slide" id="review-day-2" data-lo="LO3 LO4" data-n="3">
+  <div class="kicker">Review of Day 2</div>
+  <h2>Where did the memory go?</h2>
+  <div class="quiz" data-type="single" data-lo="LO3" data-id="review-day-2-q1">
+    <p class="lead">Waraqa's training peak at batch 256 is about 40 times its weights, gradients and optimiser state together. Which change cuts that peak most, at the same effective batch?</p>
+    <div class="opts">
+      <div class="opt" data-why="Optimiser state is a few megabytes here; activations are the bulk" data-k="A">Switching AdamW for SGD to drop the optimiser state</div>
+      <div class="opt" data-ok data-k="B">Accumulating four micro-batches of 64</div>
+      <div class="opt" data-why="Fewer weight bytes do not touch the activations that dominate" data-k="C">Storing the weights in 16 bits</div>
+      <div class="opt" data-why="Folding is an inference transformation; it does not apply while batch norm is training" data-k="D">Folding batch norm into the convolutions</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Activations dominate and scale with the batch held at once; accumulation holds a quarter of them.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. Checkpointing would also work; ask which costs less time on their machine, from their Lab 2.3 table.</p></aside>
+</section>
+
+<!-- ======================= SESSION 1 ======================= -->
+<section class="slide section" id="s1" data-auto="section" data-session="1" data-n="4">
+  <div class="kicker">Session 1</div>
+  <h1>Latency, throughput and batching</h1>
+  <ul class="bullets outcomes"><li>Measure latency and throughput across batch sizes</li><li>Explain why batching raises throughput and latency together</li><li>Choose a batch size for a latency budget</li></ul>
+  <div class="sess-no">01</div>
+</section>
+
+<section class="slide" data-label="Two goals" id="latency-vs-throughput" data-lo="LO4 LO6" data-n="5" data-session="1">
+  <div class="kicker">Two kinds of work at Nama</div>
+  <h2>Latency is how long one request waits; throughput is how many finish per second</h2>
+  <div class="cols cols-2">
+    <div class="card c-teal"><h4>In the office: latency</h4><p class="small mb0">An agent photographs one leaf and waits. Budget: 15 ms at the 95th percentile.</p></div>
+    <div class="card c-coral"><h4>At night: throughput</h4><p class="small mb0">The office re-scores the day's archive. Nobody waits for one leaf; the job must finish.</p></div>
+  </div>
+  <aside class="notes"><p>Same model, two objectives. Most serving decisions (batch size, threads, replicas) trade one for the other.</p></aside>
+</section>
+
+<section class="slide" data-label="Batching" id="batch-sweep" data-lo="LO4" data-n="6" data-session="1">
+  <div class="kicker">Measured in Lab 3.1: Waraqa in PyTorch, four threads</div>
+  <h2>Batching raises throughput until the cores are busy, and raises latency all the way</h2>
+  <table class="t small">
+    <tr><th>Batch</th><th class="num">Median ms per batch</th><th class="num">ms per leaf</th><th class="num">Leaves per s</th></tr>
+    <tr><td class="num">1</td><td class="num">7.9</td><td class="num">7.9</td><td class="num">126</td></tr>
+    <tr><td class="num">2</td><td class="num">12.5</td><td class="num">6.3</td><td class="num">159</td></tr>
+    <tr><td class="num">4</td><td class="num">19.7</td><td class="num">4.9</td><td class="num">203</td></tr>
+    <tr class="hl"><td class="num">8</td><td class="num">37.8</td><td class="num">4.7</td><td class="num">212</td></tr>
+    <tr><td class="num">16</td><td class="num">81.0</td><td class="num">5.1</td><td class="num">198</td></tr>
+    <tr><td class="num">32</td><td class="num">212.2</td><td class="num">6.6</td><td class="num">151</td></tr>
+    <tr><td class="num">64</td><td class="num">318.2</td><td class="num">5.0</td><td class="num">201</td></tr>
+  </table>
+  <aside class="notes"><p>Numbers from the course's run of Lab 3.1 (full mode). Batch 1 is memory-bound: the weights are read for one leaf. Larger batches reuse each weight for more leaves (Lab 1.1's intensity argument) until compute binds.</p></aside>
+</section>
+
+<section class="slide" data-label="The wait" id="batch-wait" data-lo="LO4 LO6" data-n="7" data-session="1">
+  <div class="kicker">The hidden cost</div>
+  <h2>A batch does not exist until its requests arrive</h2>
+  <div class="cols cols-2">
+    <div class="card c-navy"><h4>average wait = (b - 1) / (2 x rate)</h4><p class="small mb0">plus the batch's own time. At 2 leaves per second a batch of 8 makes the average leaf wait about 1.75 s before computing starts.</p></div>
+    <ul class="bullets small">
+      <li>Office, 2 leaves per second: batch 1 is the only batch that meets the budget.</li>
+      <li>Night archive, 200 per second: larger batches fill fast and serve more.</li>
+      <li>Servers batch <b>dynamically</b>: up to b requests or t milliseconds, whichever comes first.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Lab 3.1 step 4 computes this for both rates from the measured batch times. The stretch simulates dynamic batching with Poisson arrivals.</p></aside>
+</section>
+
+<section class="slide" data-label="Goodput" id="goodput" data-lo="LO6" data-n="8" data-session="1">
+  <div class="kicker">Goodput against a service objective</div>
+  <h2>Count only the requests served within the objective</h2>
+  <div class="cols cols-2">
+    <div class="stat"><div class="big">500 x 50% = 250</div><div class="lbl">leaves per second of goodput, for a server that answers 500 per second with half of them late</div></div>
+    <ul class="bullets small">
+      <li>Throughput counts everything; goodput counts what the user accepts.</li>
+      <li>A larger batch can raise throughput and lower goodput.</li>
+      <li>Load tests of a real service measure it: AE-205 does that under load.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Illustrative arithmetic, not a measurement. The course stays on one machine; the pointer to AE-205 is for participants who serve over a network.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-1" data-lo="LO4" data-n="9" data-session="1">
+  <div class="kicker">Checkpoint</div>
+  <h2>Which batch size for the office?</h2>
+  <div class="quiz" data-type="single" data-lo="LO4" data-id="checkpoint-1-q1">
+    <p class="lead">Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?</p>
+    <div class="opts">
+      <div class="opt" data-why="Optimises throughput, which the office does not need; the first leaf would wait for fifteen more" data-k="A">16, for the throughput</div>
+      <div class="opt" data-why="Splits the difference without measuring the wait; a batch of 4 still waits for three more leaves" data-k="B">4, a compromise</div>
+      <div class="opt" data-ok data-k="C">1: requests are rare, so any larger batch adds seconds of waiting</div>
+      <div class="opt" data-why="Thinks the largest batch is always cheapest per leaf and therefore best" data-k="D">64, the cheapest per leaf</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> At one leaf every two seconds, a batch of b makes leaves wait for b - 1 arrivals; only batch 1 meets a budget in milliseconds.</div>
+  </div>
+  <aside class="notes"><p>Answer: C. Batching belongs to the night archive.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-3-1" data-auto="lab" data-lab="3.1" data-label="Lab 3.1" data-n="10" data-session="1">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 3.1 · 25 min</div><h2>Batch size against latency</h2><p class="lead small">Serve Waraqa at batch sizes from 1 to 64, plot latency against throughput and add the time a request waits for its batch.</p><a class="nb" href="../labs/D3_1_batching.ipynb">D3_1_batching.ipynb</a></div><ul class="checklist"><li>Time batch sizes from 1 to 64 <span class="min">6 min</span></li><li>Throughput per batch size <span class="min">4 min</span></li><li>Plot latency against throughput <span class="min">5 min</span></li><li>Add the wait for the batch to fill <span class="min">6 min</span></li><li>Pick the batch size for the farm office <span class="min">4 min</span></li><li class="stretch">✱ Stretch: Simulate dynamic batching with a timeout and find its tail latency</li></ul></div>
+  <aside class="notes"><p>Usual problems: timing without torch.no_grad (autograd bookkeeping inflates small batches); forgetting warm-up at each batch size; plotting per-batch latency and reading it as per-leaf. Ask participants to keep the batch-1 numbers: Lab 4.2 benchmarks the same case properly.</p></aside>
+</section>
+
+<!-- ======================= SESSION 2 ======================= -->
+<section class="slide section" id="s2" data-auto="section" data-session="2" data-n="11">
+  <div class="kicker">Session 2</div>
+  <h1>Language model inference on a laptop</h1>
+  <ul class="bullets outcomes"><li>Measure time to first token and tokens per second</li><li>Size a key-value cache from the model's shape</li><li>Route a question by its data classification</li></ul>
+  <div class="sess-no">02</div>
+</section>
+
+<section class="slide" data-label="Hasad" id="meet-hasad" data-lo="LO1 LO3" data-n="12" data-session="2">
+  <div class="kicker">The language model on the laptop</div>
+  <h2>Hasad: a small open-weight model the course trained, shipped in the repository</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>A decoder-only transformer: 6 layers, width 128, 4 heads, a context of 512.</li>
+      <li>1.27 million parameters; one token is one character.</li>
+      <li>Trained on Nama's synthetic advisory facts; it answers the farmer questions of the case.</li>
+    </ul>
+    <div class="card c-teal"><h4>Why so small</h4><p class="small mb0">Every lab runs on a laptop processor and nothing is downloaded. The arithmetic of prefill, decode and the cache is the same at any size.</p></div>
+  </div>
+  <aside class="notes"><p>Be honest with the room: Hasad is a teaching model, far smaller than any assistant they use. What transfers is the method and the formulas; the slide after the measurements scales them to a real model's shape. Runtimes such as llama.cpp and Ollama run real small models on laptops with the same two phases.</p></aside>
+</section>
+
+<section class="slide" data-label="Two phases" id="prefill-decode" data-lo="LO1" data-n="13" data-session="2">
+  <div class="kicker">Prefill and decode</div>
+  <h2>Reading the prompt is one big pass; writing the answer is one pass per token</h2>
+  <div class="flow">
+    <div class="step c-teal"><b>Prefill</b>all prompt tokens at once: many rows, compute-bound; ends with the first token</div>
+    <div class="arrow">→</div>
+    <div class="step c-coral"><b>Decode</b>one token per pass, reading every weight and the cache: memory-bound at batch 1</div>
+  </div>
+  <div class="cols cols-2 mt">
+    <div class="card c-teal flat"><h4>Time to first token</h4><p class="small mb0">What the farmer feels before anything appears. Grows with the prompt.</p></div>
+    <div class="card c-coral flat"><h4>Tokens per second</h4><p class="small mb0">How fast the answer streams. Depends on bytes read per token.</p></div>
+  </div>
+  <aside class="notes"><p>Tie back to Lab 1.1: decode at batch 1 is layer A at batch 1, far below the ridge point. That is why quantised weights speed decoding up in runtimes built for it (Session 3).</p></aside>
+</section>
+
+<section class="slide" data-label="Measured" id="hasad-measured" data-lo="LO3" data-n="14" data-session="2">
+  <div class="kicker">Measured in Lab 3.2: farm notes before the question</div>
+  <h2>Time to first token grows with the context; decoding slows far less</h2>
+  <table class="t">
+    <tr><th>Notes (characters)</th><th class="num">Prompt tokens</th><th class="num">TTFT ms</th><th class="num">Decode tokens per s</th></tr>
+    <tr><td class="num">64</td><td class="num">136</td><td class="num">13.9</td><td class="num">233</td></tr>
+    <tr><td class="num">256</td><td class="num">328</td><td class="num">30.3</td><td class="num">220</td></tr>
+    <tr><td class="num">448</td><td class="num">432</td><td class="num">45.1</td><td class="num">163</td></tr>
+  </table>
+  <aside class="notes"><p>Numbers from the course's run of Lab 3.2 (full mode, four threads, PyTorch eager). For a model this small, much of each decode step is Python and framework overhead rather than arithmetic; a runtime written for inference removes most of it.</p></aside>
+</section>
+
+<section class="slide" data-label="KV cache" id="kv-cache" data-lo="LO1 LO3" data-n="15" data-session="2">
+  <div class="kicker">The key-value cache</div>
+  <h2>The cache keeps each token's key and value in every layer, so decode never recomputes them</h2>
+  <div class="cols cols-2">
+    <div class="card c-navy"><h4>bytes = 2 x layers x (heads x head size) x tokens x bytes per number</h4><p class="small mb0">Hasad: 2 x 6 x 128 x tokens x 4 = 6,144 bytes per token.</p></div>
+    <table class="t small">
+      <tr><th>Tokens</th><th class="num">Estimate</th><th class="num">Cache tensors</th></tr>
+      <tr><td class="num">157</td><td class="num">964.6 kB</td><td class="num">964.6 kB</td></tr>
+      <tr><td class="num">349</td><td class="num">2,144.3 kB</td><td class="num">2,144.3 kB</td></tr>
+      <tr><td class="num">472</td><td class="num">2,900.0 kB</td><td class="num">2,900.0 kB</td></tr>
+    </table>
+  </div>
+  <aside class="notes"><p>Estimate and measurement agree exactly here because the cache is plain tensors of known shape; Lab 3.2 asserts it. Models with grouped-query attention keep fewer key-value heads than query heads: use the key-value heads in the formula.</p></aside>
+</section>
+
+<section class="slide" data-label="Scale" id="kv-scale" data-lo="LO1 LO3" data-n="16" data-session="2">
+  <div class="kicker">The same formula at a real model's shape</div>
+  <h2>For a real assistant the cache is no longer small: it grows with every token and every conversation</h2>
+  <table class="t">
+    <tr><th>Model shape (16-bit numbers)</th><th class="num">Tokens</th><th class="num">Cache per conversation</th></tr>
+    <tr><td>16 layers, 8 key-value heads of 64</td><td class="num">4,096</td><td class="num">134 MB</td></tr>
+    <tr><td>32 layers, 8 key-value heads of 128</td><td class="num">8,000</td><td class="num">1.05 GB</td></tr>
+  </table>
+  <p class="small mt">Serving systems page the cache into blocks so that conversations share memory without fragmenting it (PagedAttention).</p>
+  <aside class="notes"><p>Pure arithmetic from the formula; the shapes are illustrative, not any named model. Source for the paging idea: Kwon et al., PagedAttention (arXiv 2309.06180). The weights are a fixed cost paid once; the cache is paid per conversation and per token, so on a laptop whose memory the weights already nearly fill, the context length and the number of open conversations decide whether the model still fits.</p></aside>
+</section>
+
+<section class="slide" data-label="Classification" id="route-by-classification" data-lo="LO1" data-n="17" data-session="2">
+  <div class="kicker">Which questions may leave the laptop</div>
+  <h2>Nama routes farmer questions by data classification before by speed</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>Nama applies the four levels of the <b>NDMO Data Classification Policy</b>: Top Secret, Secret, Restricted, Public.</li>
+      <li>The policy lists personally identifiable information (names, addresses, phone numbers, identity numbers) among its examples of Restricted data.</li>
+      <li>Reham's rule: Restricted questions are answered <b>on the device only</b>; Public ones may go to a hosted model.</li>
+    </ul>
+    <div class="trace s">
+      <div class="ev user"><b>Restricted</b><span>a question with a mobile number or an identity number</span></div>
+      <div class="ev model"><b>Public</b><span>"How often do I water tomatoes in Qassim in summer?"</span></div>
+    </div>
+  </div>
+  <aside class="notes"><p>The policy applies to public entities; Nama, a private company, adopts its levels as its own rule, which is the case's assumption. Read in the policy: the four levels and the examples of personally identifiable information under Restricted. Sources: NDMO Data Classification Policy (sdaia.gov.sa). In the lab, 15% of the 2,000 synthetic questions carry personal data.</p></aside>
+</section>
+
+<section class="slide" data-label="Routing" id="routing-result" data-lo="LO1" data-n="18" data-session="2">
+  <div class="kicker">Measured in Lab 3.2 on the 2,000 questions</div>
+  <h2>A router must never leak; keeping a Public question local only costs speed</h2>
+  <div class="cols cols-3">
+    <div class="stat"><div class="big">307</div><div class="lbl">Restricted questions by the answer key</div></div>
+    <div class="stat"><div class="big">0</div><div class="lbl">Restricted questions the rule would send out</div></div>
+    <div class="stat"><div class="big">0</div><div class="lbl">Public questions kept on the device</div></div>
+  </div>
+  <div class="callout warn mt"><b>Patterns catch the formats they know.</b> A phone number written in words passes. A router is a control to test, not a guarantee.</div>
+  <aside class="notes"><p>From the course's run of the lab's reference rule (four patterns). Ask the room for a question that would pass the rule and still identify a farmer: "the farm next to the mosque in a named village". That is why the default is the device.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-2" data-lo="LO3" data-n="19" data-session="2">
+  <div class="kicker">Checkpoint</div>
+  <h2>What grows with the context?</h2>
+  <div class="quiz" data-type="single" data-lo="LO3" data-id="checkpoint-2-q1">
+    <p class="lead">Farm agents start pasting a week of farm notes (2,000 characters) before each question. On a model with a context of 4,096 tokens, what changes most?</p>
+    <div class="opts">
+      <div class="opt" data-why="Thinks the weights grow with the prompt; they are fixed" data-k="A">The memory of the model's weights</div>
+      <div class="opt" data-why="Expects decoding to slow in proportion; each decode step adds one token and reads the cache, which grows only modestly" data-k="B">Tokens per second, which fall in proportion to the context</div>
+      <div class="opt" data-why="Thinks a longer prompt makes the answer longer; answer length depends on the question" data-k="C">The number of tokens in the answer</div>
+      <div class="opt" data-ok data-k="D">The time to first token and the size of the key-value cache</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Prefill processes every prompt token and the cache stores each one; decoding adds one token at a time.</div>
+  </div>
+  <aside class="notes"><p>Answer: D. Then ask whether pasting the notes is worth it, and what a retrieval step that picks the relevant notes would change.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-3-2" data-auto="lab" data-lab="3.2" data-label="Lab 3.2" data-n="20" data-session="2">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 3.2 · 25 min</div><h2>Hasad on a laptop</h2><p class="lead small">Measure Hasad's time to first token and tokens per second at three context lengths, size its key-value cache, and route farmer questions to the device or a hosted model by data classification.</p><a class="nb" href="../labs/D3_2_lm_inference.ipynb">D3_2_lm_inference.ipynb</a></div><ul class="checklist"><li>Time to first token at three context lengths <span class="min">6 min</span></li><li>Tokens per second while decoding <span class="min">4 min</span></li><li>Size the key-value cache by hand <span class="min">5 min</span></li><li>Check the estimate against the cache tensors <span class="min">4 min</span></li><li>Route questions by classification <span class="min">6 min</span></li><li class="stretch">✱ Stretch: Decode without the cache and measure what it costs</li></ul></div>
+  <aside class="notes"><p>AI-off for the cache formula. Usual problems: counting the cache for the prompt only (generated tokens are cached too, except the last); the router's identity-number pattern catching the phone number's digits (check the order of tests); reading TTFT from the first, cold call. The farmer questions are synthetic; no real person is described.</p></aside>
+</section>
+
+<!-- ======================= SESSION 3 ======================= -->
+<section class="slide section" id="s3" data-auto="section" data-session="3" data-n="21">
+  <div class="kicker">Session 3</div>
+  <h1>Quantisation</h1>
+  <ul class="bullets outcomes"><li>Quantise a classifier to 8 bits with calibration data</li><li>Compare 8-bit and 4-bit language model files on size, speed and answers</li><li>Re-measure quality by group after every quantisation</li></ul>
+  <div class="sess-no">03</div>
+</section>
+
+<section class="slide" data-label="Idea" id="quantisation-idea" data-lo="LO5" data-n="22" data-session="3">
+  <div class="kicker">Quantisation</div>
+  <h2>Store numbers as small integers with a scale, and map them back when needed</h2>
+  <div class="cols cols-2">
+    <div class="card c-navy"><h4>real value = scale x (integer - zero point)</h4><p class="small mb0">8 bits give 256 levels; 4 bits give 16. The scale is chosen per tensor, per channel or per block of weights.</p></div>
+    <ul class="bullets small">
+      <li><b>Smaller files</b>: a quarter (8-bit) or an eighth (4-bit) of float32.</li>
+      <li><b>Faster</b> only where kernels compute on integers or blocks.</li>
+      <li><b>Lossy</b>: quality is measured again, by group.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>Finer scales (per channel, per block of 32) cost a few bytes and keep more quality: an outlier weight then spoils only its own block.</p></aside>
+</section>
+
+<section class="slide" data-label="Static and dynamic" id="static-dynamic" data-lo="LO5" data-n="23" data-session="3">
+  <div class="kicker">For a classifier</div>
+  <h2>Static quantisation calibrates activation ranges on real data; dynamic computes them on the fly</h2>
+  <table class="t small">
+    <tr><th></th><th>Weights</th><th>Activations</th><th>Needs</th></tr>
+    <tr class="hl"><td>Static</td><td>8-bit, ahead of time</td><td>8-bit, ranges from calibration</td><td>a few hundred representative inputs</td></tr>
+    <tr><td>Dynamic</td><td>8-bit, ahead of time</td><td>ranges computed at run time</td><td>nothing; less speed on convolutions</td></tr>
+    <tr><td>Quantisation-aware training</td><td colspan="2">training sees the rounding and adapts to it</td><td>a training run</td></tr>
+  </table>
+  <aside class="notes"><p>Sources: ONNX Runtime documentation, quantising ONNX models (static and dynamic). Post-training quantisation is what the entry asks for; quantisation-aware training is the fallback when post-training loses too much, at the price of training again.</p></aside>
+</section>
+
+<section class="slide" data-label="Calibration" id="calibration-reader" data-lo="LO5" data-n="24" data-session="3">
+  <div class="kicker">Lab 3.3, step 1</div>
+  <h2>The calibration set must look like the field: all four crops, faint and clear cases</h2>
+  <pre class="code s" data-file="Lab 3.3"><code class="language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Reader</span>(<span class="hljs-title class_ inherited__">CalibrationDataReader</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_next</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.i &gt;= <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.x):
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+        out = {<span class="hljs-string">&quot;image&quot;</span>: U.to_input(<span class="hljs-variable language_">self</span>.x[<span class="hljs-variable language_">self</span>.i:<span class="hljs-variable language_">self</span>.i + <span class="hljs-number">16</span>]).numpy()}
+        <span class="hljs-variable language_">self</span>.i += <span class="hljs-number">16</span>
+        <span class="hljs-keyword">return</span> out
+
+quantize_static(<span class="hljs-string">&quot;waraqa_pre.onnx&quot;</span>, <span class="hljs-string">&quot;waraqa_int8.onnx&quot;</span>, Reader(x_cal),
+                quant_format=QuantFormat.QDQ, per_channel=<span class="hljs-literal">True</span>)</code></pre>
+  <aside class="notes"><p>256 training leaves, shuffled across crops. Ask: what happens if the calibration leaves were all tomato? The ranges fit tomato and clip the others.</p></aside>
+</section>
+
+<section class="slide" data-label="Waraqa int8" id="waraqa-int8" data-lo="LO5" data-n="25" data-session="3">
+  <div class="kicker">Measured in Lab 3.3: ONNX Runtime, batch 1, four threads</div>
+  <h2>The 8-bit file is a quarter of the size and slightly faster, with the same accuracy overall</h2>
+  <table class="t">
+    <tr><th>File</th><th class="num">MB</th><th class="num">Median ms</th><th class="num">p95 ms</th><th class="num">Accuracy</th><th class="num">Date palm</th></tr>
+    <tr><td>Waraqa 32-bit</td><td class="num">1.16</td><td class="num">4.64</td><td class="num">9.84</td><td class="num">99.1%</td><td class="num">92.7%</td></tr>
+    <tr class="hl"><td>Waraqa 8-bit</td><td class="num">0.31</td><td class="num">3.98</td><td class="num">7.86</td><td class="num">99.1%</td><td class="num">93.8%</td></tr>
+  </table>
+  <aside class="notes"><p>Numbers from the course's run of Lab 3.3 on the 2,000 held-out leaves. The speed gain depends on the processor's integer instructions: report what you measured. Day 4 puts intervals on the accuracy differences before anyone accepts the file.</p></aside>
+</section>
+
+<section class="slide" data-label="Hasad files" id="hasad-quantised" data-lo="LO5" data-n="26" data-session="3">
+  <div class="kicker">Measured in Lab 3.3 on 200 farmer questions</div>
+  <h2>Hasad in 8 and 4 bits: smaller files, and quality checked by language variety</h2>
+  <table class="t small">
+    <tr><th>File</th><th class="num">MB</th><th class="num">tokens/s</th><th class="num">Right</th><th class="num">MSA</th><th class="num">Gulf</th><th class="num">Mixed</th></tr>
+    <tr><td>32-bit</td><td class="num">5.08</td><td class="num">159</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+    <tr><td>8-bit, expanded once</td><td class="num">1.45</td><td class="num">187</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+    <tr><td>4-bit, expanded once</td><td class="num">0.86</td><td class="num">221</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+    <tr><td>4-bit, expanded per call</td><td class="num">0.86</td><td class="num">51</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+  </table>
+  <aside class="notes"><p>Linear layers in groups of 32 weights with one 16-bit scale per group; the embedding table stays in 16 bits. "Once" turns the codes back into float32 at load: same speed and memory as float32, small file. "Per call" keeps codes in memory and expands each weight when used. llama.cpp's quantisation types (Q8_0, Q4_K_M and others) are block-wise in the same spirit, with kernels that compute on the blocks. Source: llama.cpp quantize README.</p><p>In the course run the three expanded files decoded at 159, 187 and 221 tokens per second on a busy machine. They do the same float32 arithmetic, so read those gaps as noise and re-run before claiming any of them; only the per-call row is slower for a reason. Hasad answered all 200 questions right in every file, so this table shows no loss; Waraqa's date palm row is where compression bites.</p></aside>
+</section>
+
+<section class="slide" data-label="Where speed comes from" id="quant-speed" data-lo="LO5" data-n="27" data-session="3">
+  <div class="kicker">Read the table twice</div>
+  <h2>A smaller file is not a faster model: the runtime decides</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal flat"><h4>Expand once</h4><p class="small mb0">Small download and disk; same memory and speed as float32.</p></div>
+    <div class="card c-cyan flat"><h4>Expand per call</h4><p class="small mb0">Small memory; slower in a general framework that expands before multiplying.</p></div>
+    <div class="card c-coral flat"><h4>Compute on blocks</h4><p class="small mb0">Small memory and faster decoding, because fewer bytes are read per token. Needs a runtime built for it.</p></div>
+  </div>
+  <aside class="notes"><p>This is the lesson participants most often get wrong in capstones: they quantise, see no speed-up, and conclude quantisation does not work. Ask them which column their runtime is in.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-3" data-lo="LO5" data-n="28" data-session="3">
+  <div class="kicker">Checkpoint</div>
+  <h2>Is the 8-bit file ready to ship?</h2>
+  <div class="quiz" data-type="single" data-lo="LO5" data-id="checkpoint-3-q1">
+    <p class="lead">Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next?</p>
+    <div class="opts">
+      <div class="opt" data-ok data-k="A">Put intervals on the overall and per-crop differences, and compare them with the floor per crop</div>
+      <div class="opt" data-why="Accepts on the overall number and ignores the group that lost most" data-k="B">Ship it: 0.6 points is within a 1-point floor</div>
+      <div class="opt" data-why="Rejects on a point estimate from about 200 leaves without asking how uncertain it is" data-k="C">Reject it: any crop that loses is unacceptable</div>
+      <div class="opt" data-why="Assumes more calibration data always fixes a group's loss, before measuring whether the loss is real" data-k="D">Recalibrate with twice as many leaves and ship that</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Compression changes errors unevenly; a per-group loss on a small group needs an interval before a decision. That is Lab 4.3.</div>
+  </div>
+  <aside class="notes"><p>Answer: A. Recalibrating with more date-palm leaves may be the right fix afterwards, once the loss is shown to be real.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-3-3" data-auto="lab" data-lab="3.3" data-label="Lab 3.3" data-n="29" data-session="3">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 3.3 · 25 min</div><h2>Quantise Waraqa and Hasad</h2><p class="lead small">Quantise Waraqa to 8 bits, load the supplied 8-bit and 4-bit files of Hasad, and measure size, speed and quality loss on the fixed question set.</p><a class="nb" href="../labs/D3_3_quantisation.ipynb">D3_3_quantisation.ipynb</a></div><ul class="checklist"><li>Calibrate and quantise Waraqa to 8 bits <span class="min">6 min</span></li><li>Size, latency and accuracy of both Waraqa files <span class="min">5 min</span></li><li>Load Hasad's 8-bit and 4-bit files <span class="min">4 min</span></li><li>Size, speed and right answers by language variety <span class="min">6 min</span></li><li>One comparison table <span class="min">4 min</span></li><li class="stretch">✱ Stretch: Quantise Waraqa dynamically instead and compare with the static file</li></ul></div>
+  <aside class="notes"><p>AI-tutor: an assistant may explain the quantisation tool's options. Usual problems: a reader that returns the same batch forever (the tool never stops); quantising without pre-processing (fewer fusions, odd results); comparing accuracy on a different subset of leaves. Hasad's quality step generates answers for every question: in quick mode it uses 60.</p></aside>
+</section>
+
+<!-- ======================= SESSION 4 ======================= -->
+<section class="slide section" id="s4" data-auto="section" data-session="4" data-n="30">
+  <div class="kicker">Session 4</div>
+  <h1>Pruning or a smaller model</h1>
+  <ul class="bullets outcomes"><li>Prune whole channels by an importance score</li><li>Recover accuracy with brief fine-tuning</li><li>Compare a pruned model with a smaller one trained from scratch</li></ul>
+  <div class="sess-no">04</div>
+</section>
+
+<section class="slide" data-label="Two kinds" id="pruning-kinds" data-lo="LO5" data-n="31" data-session="4">
+  <div class="kicker">Pruning</div>
+  <h2>Zeroing weights saves nothing on dense kernels; removing channels does</h2>
+  <div class="cols cols-2">
+    <div class="card c-coral"><h4>Unstructured</h4><p class="small mb0">Set the smallest weights to zero anywhere. The matrices keep their shape: a dense kernel multiplies zeros as fast as other numbers.</p></div>
+    <div class="card c-teal"><h4>Structured</h4><p class="small mb0">Remove whole filters (channels). Every matrix gets smaller, so every layer does less work.</p></div>
+  </div>
+  <aside class="notes"><p>Unstructured sparsity pays off only with sparse kernels or special hardware patterns, and compresses well on disk. Source: Han, Mao and Dally, Deep compression (arXiv 1510.00149), for pruning combined with quantisation.</p></aside>
+</section>
+
+<section class="slide" data-label="Scores" id="channel-scores" data-lo="LO5" data-n="32" data-session="4">
+  <div class="kicker">Lab 3.4</div>
+  <h2>Score each filter by its L1 norm, keep the top half, copy the weights</h2>
+  <pre class="code s" data-file="Lab 3.4"><code class="language-python">scores = U.channel_scores(base)           <span class="hljs-comment"># one tensor per convolution</span>
+keep = [torch.sort(torch.topk(s, <span class="hljs-built_in">len</span>(s) // <span class="hljs-number">2</span>).indices).values
+        <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> scores]
+pruned = U.prune_channels(base, keep)     <span class="hljs-comment"># a smaller Waraqa, weights copied</span>
+U.train_steps(pruned, x_tr, y_tr, steps, lr=<span class="hljs-number">5e-4</span>)   <span class="hljs-comment"># a short fine-tune</span></code></pre>
+  <aside class="notes"><p>Removing an output channel of one convolution also removes the matching input channel of the next: prune_channels handles that. L1 norm is a cheap score; others use the batch norm's scale or the effect on the loss.</p></aside>
+</section>
+
+<section class="slide" data-label="Results" id="pruning-results" data-lo="LO5" data-n="33" data-session="4">
+  <div class="kicker">Measured in Lab 3.4: batch 1, PyTorch, four threads</div>
+  <h2>Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy</h2>
+  <table class="t small">
+    <tr><th>Model</th><th class="num">Parameters</th><th class="num">MB</th><th class="num">Median ms</th><th class="num">Accuracy</th></tr>
+    <tr><td>Waraqa</td><td class="num">288,746</td><td class="num">1.17</td><td class="num">12.8</td><td class="num">99.1%</td></tr>
+    <tr><td>Pruned, no fine-tune</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.5</td><td class="num">8.4%</td></tr>
+    <tr><td>Pruned, 250 fine-tune steps</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.8</td><td class="num">95.6%</td></tr>
+    <tr class="hl"><td>Waraqa-S, trained small</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">8.4</td><td class="num">97.9%</td></tr>
+    <tr><td>Pruned, one epoch (supplied)</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.7</td><td class="num">95.0%</td></tr>
+  </table>
+  <aside class="notes"><p>Numbers from the course's run of Lab 3.4 in full mode. Waraqa-S was trained from scratch for the same six epochs as Waraqa; the supplied pruned model was fine-tuned for one epoch.</p><p>The timings are from the lab's last step, which times all five models in turn, six rounds of 40 calls each, so that every model meets the same machine state; timed one after the other, with a fine-tune in between, the same models disagreed by up to six times between two runs. The laptop was shared and busy, so the absolute values are about twice Lab 1.2's quiet 5.7 ms: read the ratio, about 1.6 times faster with half the channels, and read Day 4's results table for speed in ONNX Runtime on a quiet machine (pruned 0.74 ms, Waraqa-S 1.00 ms, Waraqa 1.82 ms at the median). The four small models are the same architecture, so the differences among them are noise.</p></aside>
+</section>
+
+<section class="slide" data-label="Distillation" id="distillation-concept" data-lo="LO5" data-n="34" data-session="4">
+  <div class="kicker">A third route, as a concept</div>
+  <h2>Distillation trains the small model to imitate the large one's probabilities</h2>
+  <div class="cols cols-2">
+    <ul class="bullets small">
+      <li>The teacher's output says not only "rust" but "rust, a little like leaf spot".</li>
+      <li>The student learns from those soft targets as well as the labels.</li>
+      <li>Often beats the same small model trained on labels alone.</li>
+    </ul>
+    <div class="card c-purple"><h4>When to choose which</h4><p class="small mb0">Prune when you own a trained large model and want a cheap result; shrink or distil when you train anyway and want the simplest artefact.</p></div>
+  </div>
+  <aside class="notes"><p>Concept level only, as the entry says. Source: Hinton, Vinyals and Dean, Distilling the knowledge in a neural network (arXiv 1503.02531). AE-310 teaches distillation in practice.</p></aside>
+</section>
+
+<section class="slide" id="checkpoint-4" data-lo="LO5" data-n="35" data-session="4">
+  <div class="kicker">Checkpoint</div>
+  <h2>Why is the masked model not faster?</h2>
+  <div class="quiz" data-type="single" data-lo="LO5" data-id="checkpoint-4-q1">
+    <p class="lead">You set half of Waraqa's convolution weights to zero by magnitude. Accuracy barely changes and latency does not change at all. Why?</p>
+    <div class="opts">
+      <div class="opt" data-why="Thinks the zeros were not applied; counting them would show they were" data-k="A">The pruning did not take effect</div>
+      <div class="opt" data-ok data-k="B">The dense kernels still multiply every weight, zero or not</div>
+      <div class="opt" data-why="Blames batch norm, which is unaffected by weight masking" data-k="C">Batch norm undoes the pruning at inference</div>
+      <div class="opt" data-why="Assumes latency is dominated by the head; the convolutions do almost all the work" data-k="D">Only the classifier head determines latency</div>
+    </div>
+    <div class="callout tip why"><b>Why.</b> Unstructured zeros keep every matrix the same size; only removing whole channels, or a sparse kernel, reduces work.</div>
+  </div>
+  <aside class="notes"><p>Answer: B. This is the lab's stretch; ask a participant who ran it to show the zero count and the unchanged timing.</p></aside>
+</section>
+
+<section class="slide lab top" id="lab-3-4" data-auto="lab" data-lab="3.4" data-label="Lab 3.4" data-n="36" data-session="4">
+  <div class="cols cols-2 mid"><div><div class="lab-tag">Lab 3.4 · 25 min</div><h2>Prune or shrink</h2><p class="lead small">Prune half of Waraqa's channels, fine-tune briefly and compare with Waraqa-S, the smaller architecture trained from scratch.</p><a class="nb" href="../labs/D3_4_pruning.ipynb">D3_4_pruning.ipynb</a></div><ul class="checklist"><li>Score channels by their L1 norm <span class="min">4 min</span></li><li>Prune half and measure accuracy <span class="min">5 min</span></li><li>Fine-tune briefly <span class="min">6 min</span></li><li>Compare with Waraqa-S <span class="min">5 min</span></li><li>Size, latency and accuracy table <span class="min">5 min</span></li><li class="stretch">✱ Stretch: Mask half the weights without removing channels: does it run faster?</li></ul></div>
+  <aside class="notes"><p>Usual problems: keeping indices unsorted (channels shuffle, accuracy collapses); fine-tuning at the original learning rate (the pruned model forgets); comparing with Waraqa-S on a different test subset. The supplied waraqa_pruned is the fallback for anyone whose fine-tune did not finish.</p></aside>
+</section>
+
+<!-- ======================= CLOSING ======================= -->
+<section class="slide" data-label="Recap" id="day-3-recap" data-n="37" data-session="4">
+  <div class="kicker">Day 3 recap</div>
+  <h2>Three things to keep from Day 3</h2>
+  <div class="cols cols-3">
+    <div class="card c-teal"><h4>Batching is a trade</h4><p class="small mb0">Throughput for latency, and only when requests arrive fast enough.</p></div>
+    <div class="card c-cyan"><h4>Cache arithmetic</h4><p class="small mb0">2 x layers x width x tokens x bytes, per conversation, on top of the weights.</p></div>
+    <div class="card c-coral"><h4>Compression is lossy</h4><p class="small mb0">Smaller is not faster without the right kernels, and quality moves unevenly.</p></div>
+  </div>
+  <aside class="notes"><p>Ask which compressed variant each table would ship today, and what evidence is missing. Tomorrow supplies it.</p></aside>
+</section>
+
+<section class="slide dark" data-label="Tomorrow" id="tomorrow-export" data-n="38" data-session="4">
+  <div class="kicker">Tomorrow · Day 4</div>
+  <h2>Export and benchmark</h2>
+  <p class="lead">Tomorrow you export Waraqa to a portable runtime and prove it matches, write a benchmark someone else can re-run within 10%, put intervals on the quality of every compressed variant by crop, and choose the one that meets Nama's budget. Then you choose your capstone model.</p>
+  <aside class="notes"><p>Ask participants to think about the capstone model tonight: Waraqa, Hasad or their own model that runs on a laptop processor or a free notebook GPU.</p></aside>
+</section>
+</div>
+<script type="application/json" id="academy-data">{"v":1,"engine":"1.0.0","build":{"at":"2026-11-15T11:52:37Z","version":"2027.1.0","commit":"71acc15"},"course":{"id":"ae-206","code":"AE-206","title":"Machine Learning Systems on One Machine","track":"ai-engineering","lang":"en","dir":"ltr","url":"https://sdaiaacademy.github.io/ae-206/","repo":"SDAIAAcademy/ae-206","home":"../index.html"},"deck":{"id":"day3","kind":"day","day":3,"label":"Day 3","title":"Inference and compression","prev":"day2.html","next":"day4.html","md":"day3.md","alt":{}},"sessions":[{"n":1,"label":"Session 1","title":"Latency, throughput and batching","slide":"s1","outcomes":["Measure latency and throughput across batch sizes","Explain why batching raises throughput and latency together","Choose a batch size for a latency budget"],"minutes":50,"lab":{"id":"3.1","title":"Batch size against latency","minutes":25,"href":"../labs/D3_1_batching.ipynb"}},{"n":2,"label":"Session 2","title":"Language model inference on a laptop","slide":"s2","outcomes":["Measure time to first token and tokens per second","Size a key-value cache from the model's shape","Route a question by its data classification"],"minutes":50,"lab":{"id":"3.2","title":"Hasad on a laptop","minutes":25,"href":"../labs/D3_2_lm_inference.ipynb"}},{"n":3,"label":"Session 3","title":"Quantisation","slide":"s3","outcomes":["Quantise a classifier to 8 bits with calibration data","Compare 8-bit and 4-bit language model files on size, speed and answers","Re-measure quality by group after every quantisation"],"minutes":50,"lab":{"id":"3.3","title":"Quantise Waraqa and Hasad","minutes":25,"href":"../labs/D3_3_quantisation.ipynb"}},{"n":4,"label":"Session 4","title":"Pruning or a smaller model","slide":"s4","outcomes":["Prune whole channels by an importance score","Recover accuracy with brief fine-tuning","Compare a pruned model with a smaller one trained from scratch"],"minutes":50,"lab":{"id":"3.4","title":"Prune or shrink","minutes":25,"href":"../labs/D3_4_pruning.ipynb"}}],"slides":[{"id":"title","n":1,"title":"Inference and compression","kind":"title","session":0,"hash":"af7b5dde","md":"#### [day3#title] Inference and compression\n\n*SDAIA Academy · Machine Learning Systems on One Machine*\n\nDay 3: Serving one prediction fast, then making the model smaller\n\nAI Engineering Track · 4 teaching days + capstone day · 4 sessions · 4 labs · AE-206","notes":"Days 1 and 2 were about training. Today is about the moment a farm agent photographs a leaf or asks a question and waits. Two numbers matter to that agent: how long the answer takes and whether it is right. Every change today is measured on both.","minutes":null,"lo":[]},{"id":"agenda","n":2,"title":"Inference and compression","kind":"content","session":0,"hash":"01f1210d","md":"#### [day3#agenda] Inference and compression\n\n*Today*\n\n- **Session 1 · Latency, throughput and batching**: Latency against throughput, batching and the queue that batching creates\n- **Session 2 · Language model inference on a laptop**: Prefill and decode, the key-value cache and its arithmetic, and which questions may leave the device\n- **Session 3 · Quantisation**: Quantisation formats, scales and calibration, for a classifier and a language model\n- **Session 4 · Pruning or a smaller model**: Unstructured and structured pruning, a smaller architecture, and distillation as an idea","notes":"","minutes":null,"lo":[]},{"id":"review-day-2","n":3,"title":"Where did the memory go?","kind":"quiz","session":0,"hash":"e6138b71","md":"#### [day3#review-day-2] Where did the memory go?\n\n*Review of Day 2*\n\n**Question:** Waraqa's training peak at batch 256 is about 40 times its weights, gradients and optimiser state together. Which change cuts that peak most, at the same effective batch?\n\n- A. Switching AdamW for SGD to drop the optimiser state\n- B. Accumulating four micro-batches of 64\n- C. Storing the weights in 16 bits\n- D. Folding batch norm into the convolutions","notes":"Answer: B. Checkpointing would also work; ask which costs less time on their machine, from their Lab 2.3 table.","minutes":null,"lo":["LO3","LO4"]},{"id":"s1","n":4,"title":"Latency, throughput and batching","kind":"section","session":1,"hash":"f0100811","md":"#### [day3#s1] Latency, throughput and batching\n\n*Session 1*\n\n- Measure latency and throughput across batch sizes\n- Explain why batching raises throughput and latency together\n- Choose a batch size for a latency budget","notes":"","minutes":null,"lo":["LO4","LO6"]},{"id":"latency-vs-throughput","n":5,"title":"Latency is how long one request waits; throughput is how many finish per second","kind":"content","session":1,"hash":"e5a401b0","md":"#### [day3#latency-vs-throughput] Latency is how long one request waits; throughput is how many finish per second\n\n*Two kinds of work at Nama*\n\n- **In the office: latency.** An agent photographs one leaf and waits. Budget: 15 ms at the 95th percentile.\n- **At night: throughput.** The office re-scores the day's archive. Nobody waits for one leaf; the job must finish.","notes":"Same model, two objectives. Most serving decisions (batch size, threads, replicas) trade one for the other.","minutes":null,"lo":["LO4","LO6"]},{"id":"batch-sweep","n":6,"title":"Batching raises throughput until the cores are busy, and raises latency all the way","kind":"content","session":1,"hash":"faaaa2e7","md":"#### [day3#batch-sweep] Batching raises throughput until the cores are busy, and raises latency all the way\n\n*Measured in Lab 3.1: Waraqa in PyTorch, four threads*\n\n| Batch | Median ms per batch | ms per leaf | Leaves per s |\n| --- | --- | --- | --- |\n| 1 | 7.9 | 7.9 | 126 |\n| 2 | 12.5 | 6.3 | 159 |\n| 4 | 19.7 | 4.9 | 203 |\n| 8 | 37.8 | 4.7 | 212 |\n| 16 | 81.0 | 5.1 | 198 |\n| 32 | 212.2 | 6.6 | 151 |\n| 64 | 318.2 | 5.0 | 201 |","notes":"Numbers from the course's run of Lab 3.1 (full mode). Batch 1 is memory-bound: the weights are read for one leaf. Larger batches reuse each weight for more leaves (Lab 1.1's intensity argument) until compute binds.","minutes":null,"lo":["LO4"]},{"id":"batch-wait","n":7,"title":"A batch does not exist until its requests arrive","kind":"content","session":1,"hash":"48dbae17","md":"#### [day3#batch-wait] A batch does not exist until its requests arrive\n\n*The hidden cost*\n\n- **average wait = (b - 1) / (2 x rate).** plus the batch's own time. At 2 leaves per second a batch of 8 makes the average leaf wait about 1.75 s before computing starts.\n\n- Office, 2 leaves per second: batch 1 is the only batch that meets the budget.\n- Night archive, 200 per second: larger batches fill fast and serve more.\n- Servers batch **dynamically**: up to b requests or t milliseconds, whichever comes first.","notes":"Lab 3.1 step 4 computes this for both rates from the measured batch times. The stretch simulates dynamic batching with Poisson arrivals.","minutes":null,"lo":["LO4","LO6"]},{"id":"goodput","n":8,"title":"Count only the requests served within the objective","kind":"content","session":1,"hash":"eb95fb71","md":"#### [day3#goodput] Count only the requests served within the objective\n\n*Goodput against a service objective*\n\n**500 x 50% = 250** leaves per second of goodput, for a server that answers 500 per second with half of them late\n\n- Throughput counts everything; goodput counts what the user accepts.\n- A larger batch can raise throughput and lower goodput.\n- Load tests of a real service measure it: AE-205 does that under load.","notes":"Illustrative arithmetic, not a measurement. The course stays on one machine; the pointer to AE-205 is for participants who serve over a network.","minutes":null,"lo":["LO6"]},{"id":"checkpoint-1","n":9,"title":"Which batch size for the office?","kind":"quiz","session":1,"hash":"ffea3830","md":"#### [day3#checkpoint-1] Which batch size for the office?\n\n*Checkpoint*\n\n**Question:** Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?\n\n- A. 16, for the throughput\n- B. 4, a compromise\n- C. 1: requests are rare, so any larger batch adds seconds of waiting\n- D. 64, the cheapest per leaf","notes":"Answer: C. Batching belongs to the night archive.","minutes":null,"lo":["LO4"]},{"id":"lab-3-1","n":10,"title":"Batch size against latency","kind":"lab","session":1,"hash":"935c56d1","md":"#### [day3#lab-3-1] Batch size against latency\n\nLab 3.1 · 25 min\n\nServe Waraqa at batch sizes from 1 to 64, plot latency against throughput and add the time a request waits for its batch.\n\n[D3_1_batching.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D3_1_batching.ipynb)\n\n- [ ] Time batch sizes from 1 to 64 (6 min)\n- [ ] Throughput per batch size (4 min)\n- [ ] Plot latency against throughput (5 min)\n- [ ] Add the wait for the batch to fill (6 min)\n- [ ] Pick the batch size for the farm office (4 min)\n- [ ] ✱ Stretch: Simulate dynamic batching with a timeout and find its tail latency","notes":"Usual problems: timing without torch.no_grad (autograd bookkeeping inflates small batches); forgetting warm-up at each batch size; plotting per-batch latency and reading it as per-leaf. Ask participants to keep the batch-1 numbers: Lab 4.2 benchmarks the same case properly.","minutes":null,"lo":[]},{"id":"s2","n":11,"title":"Language model inference on a laptop","kind":"section","session":2,"hash":"36e9bd1f","md":"#### [day3#s2] Language model inference on a laptop\n\n*Session 2*\n\n- Measure time to first token and tokens per second\n- Size a key-value cache from the model's shape\n- Route a question by its data classification","notes":"","minutes":null,"lo":["LO1","LO3"]},{"id":"meet-hasad","n":12,"title":"Hasad: a small open-weight model the course trained, shipped in the repository","kind":"content","session":2,"hash":"db786b52","md":"#### [day3#meet-hasad] Hasad: a small open-weight model the course trained, shipped in the repository\n\n*The language model on the laptop*\n\n- A decoder-only transformer: 6 layers, width 128, 4 heads, a context of 512.\n- 1.27 million parameters; one token is one character.\n- Trained on Nama's synthetic advisory facts; it answers the farmer questions of the case.\n\n- **Why so small.** Every lab runs on a laptop processor and nothing is downloaded. The arithmetic of prefill, decode and the cache is the same at any size.","notes":"Be honest with the room: Hasad is a teaching model, far smaller than any assistant they use. What transfers is the method and the formulas; the slide after the measurements scales them to a real model's shape. Runtimes such as llama.cpp and Ollama run real small models on laptops with the same two phases.","minutes":null,"lo":["LO1","LO3"]},{"id":"prefill-decode","n":13,"title":"Reading the prompt is one big pass; writing the answer is one pass per token","kind":"content","session":2,"hash":"baba438d","md":"#### [day3#prefill-decode] Reading the prompt is one big pass; writing the answer is one pass per token\n\n*Prefill and decode*\n\n1. **Prefill** all prompt tokens at once: many rows, compute-bound; ends with the first token\n2. **Decode** one token per pass, reading every weight and the cache: memory-bound at batch 1\n\n- **Time to first token.** What the farmer feels before anything appears. Grows with the prompt.\n- **Tokens per second.** How fast the answer streams. Depends on bytes read per token.","notes":"Tie back to Lab 1.1: decode at batch 1 is layer A at batch 1, far below the ridge point. That is why quantised weights speed decoding up in runtimes built for it (Session 3).","minutes":null,"lo":["LO1"]},{"id":"hasad-measured","n":14,"title":"Time to first token grows with the context; decoding slows far less","kind":"content","session":2,"hash":"85b7c128","md":"#### [day3#hasad-measured] Time to first token grows with the context; decoding slows far less\n\n*Measured in Lab 3.2: farm notes before the question*\n\n| Notes (characters) | Prompt tokens | TTFT ms | Decode tokens per s |\n| --- | --- | --- | --- |\n| 64 | 136 | 13.9 | 233 |\n| 256 | 328 | 30.3 | 220 |\n| 448 | 432 | 45.1 | 163 |","notes":"Numbers from the course's run of Lab 3.2 (full mode, four threads, PyTorch eager). For a model this small, much of each decode step is Python and framework overhead rather than arithmetic; a runtime written for inference removes most of it.","minutes":null,"lo":["LO3"]},{"id":"kv-cache","n":15,"title":"The cache keeps each token's key and value in every layer, so decode never recomputes them","kind":"content","session":2,"hash":"f445d762","md":"#### [day3#kv-cache] The cache keeps each token's key and value in every layer, so decode never recomputes them\n\n*The key-value cache*\n\n- **bytes = 2 x layers x (heads x head size) x tokens x bytes per number.** Hasad: 2 x 6 x 128 x tokens x 4 = 6,144 bytes per token.\n\n| Tokens | Estimate | Cache tensors |\n| --- | --- | --- |\n| 157 | 964.6 kB | 964.6 kB |\n| 349 | 2,144.3 kB | 2,144.3 kB |\n| 472 | 2,900.0 kB | 2,900.0 kB |","notes":"Estimate and measurement agree exactly here because the cache is plain tensors of known shape; Lab 3.2 asserts it. Models with grouped-query attention keep fewer key-value heads than query heads: use the key-value heads in the formula.","minutes":null,"lo":["LO1","LO3"]},{"id":"kv-scale","n":16,"title":"For a real assistant the cache is no longer small: it grows with every token and every conversation","kind":"content","session":2,"hash":"a6425de8","md":"#### [day3#kv-scale] For a real assistant the cache is no longer small: it grows with every token and every conversation\n\n*The same formula at a real model's shape*\n\n| Model shape (16-bit numbers) | Tokens | Cache per conversation |\n| --- | --- | --- |\n| 16 layers, 8 key-value heads of 64 | 4,096 | 134 MB |\n| 32 layers, 8 key-value heads of 128 | 8,000 | 1.05 GB |\n\nServing systems page the cache into blocks so that conversations share memory without fragmenting it (PagedAttention).","notes":"Pure arithmetic from the formula; the shapes are illustrative, not any named model. Source for the paging idea: Kwon et al., PagedAttention (arXiv 2309.06180). The weights are a fixed cost paid once; the cache is paid per conversation and per token, so on a laptop whose memory the weights already nearly fill, the context length and the number of open conversations decide whether the model still fits.","minutes":null,"lo":["LO1","LO3"]},{"id":"route-by-classification","n":17,"title":"Nama routes farmer questions by data classification before by speed","kind":"content","session":2,"hash":"b46bf573","md":"#### [day3#route-by-classification] Nama routes farmer questions by data classification before by speed\n\n*Which questions may leave the laptop*\n\n- Nama applies the four levels of the **NDMO Data Classification Policy**: Top Secret, Secret, Restricted, Public.\n- The policy lists personally identifiable information (names, addresses, phone numbers, identity numbers) among its examples of Restricted data.\n- Reham's rule: Restricted questions are answered **on the device only**; Public ones may go to a hosted model.\n\n- Restricted: a question with a mobile number or an identity number\n- Public: \"How often do I water tomatoes in Qassim in summer?\"","notes":"The policy applies to public entities; Nama, a private company, adopts its levels as its own rule, which is the case's assumption. Read in the policy: the four levels and the examples of personally identifiable information under Restricted. Sources: NDMO Data Classification Policy (sdaia.gov.sa). In the lab, 15% of the 2,000 synthetic questions carry personal data.","minutes":null,"lo":["LO1"]},{"id":"routing-result","n":18,"title":"A router must never leak; keeping a Public question local only costs speed","kind":"content","session":2,"hash":"fb284e13","md":"#### [day3#routing-result] A router must never leak; keeping a Public question local only costs speed\n\n*Measured in Lab 3.2 on the 2,000 questions*\n\n- **307** Restricted questions by the answer key\n- **0** Restricted questions the rule would send out\n- **0** Public questions kept on the device\n\n> **Patterns catch the formats they know.** A phone number written in words passes. A router is a control to test, not a guarantee.","notes":"From the course's run of the lab's reference rule (four patterns). Ask the room for a question that would pass the rule and still identify a farmer: \"the farm next to the mosque in a named village\". That is why the default is the device.","minutes":null,"lo":["LO1"]},{"id":"checkpoint-2","n":19,"title":"What grows with the context?","kind":"quiz","session":2,"hash":"9f59c464","md":"#### [day3#checkpoint-2] What grows with the context?\n\n*Checkpoint*\n\n**Question:** Farm agents start pasting a week of farm notes (2,000 characters) before each question. On a model with a context of 4,096 tokens, what changes most?\n\n- A. The memory of the model's weights\n- B. Tokens per second, which fall in proportion to the context\n- C. The number of tokens in the answer\n- D. The time to first token and the size of the key-value cache","notes":"Answer: D. Then ask whether pasting the notes is worth it, and what a retrieval step that picks the relevant notes would change.","minutes":null,"lo":["LO3"]},{"id":"lab-3-2","n":20,"title":"Hasad on a laptop","kind":"lab","session":2,"hash":"580f3f06","md":"#### [day3#lab-3-2] Hasad on a laptop\n\nLab 3.2 · 25 min\n\nMeasure Hasad's time to first token and tokens per second at three context lengths, size its key-value cache, and route farmer questions to the device or a hosted model by data classification.\n\n[D3_2_lm_inference.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D3_2_lm_inference.ipynb)\n\n- [ ] Time to first token at three context lengths (6 min)\n- [ ] Tokens per second while decoding (4 min)\n- [ ] Size the key-value cache by hand (5 min)\n- [ ] Check the estimate against the cache tensors (4 min)\n- [ ] Route questions by classification (6 min)\n- [ ] ✱ Stretch: Decode without the cache and measure what it costs","notes":"AI-off for the cache formula. Usual problems: counting the cache for the prompt only (generated tokens are cached too, except the last); the router's identity-number pattern catching the phone number's digits (check the order of tests); reading TTFT from the first, cold call. The farmer questions are synthetic; no real person is described.","minutes":null,"lo":[]},{"id":"s3","n":21,"title":"Quantisation","kind":"section","session":3,"hash":"8bff8f7f","md":"#### [day3#s3] Quantisation\n\n*Session 3*\n\n- Quantise a classifier to 8 bits with calibration data\n- Compare 8-bit and 4-bit language model files on size, speed and answers\n- Re-measure quality by group after every quantisation","notes":"","minutes":null,"lo":["LO5"]},{"id":"quantisation-idea","n":22,"title":"Store numbers as small integers with a scale, and map them back when needed","kind":"content","session":3,"hash":"c59c0e5c","md":"#### [day3#quantisation-idea] Store numbers as small integers with a scale, and map them back when needed\n\n*Quantisation*\n\n- **real value = scale x (integer - zero point).** 8 bits give 256 levels; 4 bits give 16. The scale is chosen per tensor, per channel or per block of weights.\n\n- **Smaller files**: a quarter (8-bit) or an eighth (4-bit) of float32.\n- **Faster** only where kernels compute on integers or blocks.\n- **Lossy**: quality is measured again, by group.","notes":"Finer scales (per channel, per block of 32) cost a few bytes and keep more quality: an outlier weight then spoils only its own block.","minutes":null,"lo":["LO5"]},{"id":"static-dynamic","n":23,"title":"Static quantisation calibrates activation ranges on real data; dynamic computes them on the fly","kind":"content","session":3,"hash":"96521dcb","md":"#### [day3#static-dynamic] Static quantisation calibrates activation ranges on real data; dynamic computes them on the fly\n\n*For a classifier*\n\n|  | Weights | Activations | Needs |\n| --- | --- | --- | --- |\n| Static | 8-bit, ahead of time | 8-bit, ranges from calibration | a few hundred representative inputs |\n| Dynamic | 8-bit, ahead of time | ranges computed at run time | nothing; less speed on convolutions |\n| Quantisation-aware training | training sees the rounding and adapts to it | a training run |  |","notes":"Sources: ONNX Runtime documentation, quantising ONNX models (static and dynamic). Post-training quantisation is what the entry asks for; quantisation-aware training is the fallback when post-training loses too much, at the price of training again.","minutes":null,"lo":["LO5"]},{"id":"calibration-reader","n":24,"title":"The calibration set must look like the field: all four crops, faint and clear cases","kind":"content","session":3,"hash":"324ceacb","md":"#### [day3#calibration-reader] The calibration set must look like the field: all four crops, faint and clear cases\n\n*Lab 3.3, step 1*\n\n```python\n# file: Lab 3.3\nclass Reader(CalibrationDataReader):\n    def get_next(self):\n        if self.i >= len(self.x):\n            return None\n        out = {\"image\": U.to_input(self.x[self.i:self.i + 16]).numpy()}\n        self.i += 16\n        return out\n\nquantize_static(\"waraqa_pre.onnx\", \"waraqa_int8.onnx\", Reader(x_cal),\n                quant_format=QuantFormat.QDQ, per_channel=True)\n```","notes":"256 training leaves, shuffled across crops. Ask: what happens if the calibration leaves were all tomato? The ranges fit tomato and clip the others.","minutes":null,"lo":["LO5"]},{"id":"waraqa-int8","n":25,"title":"The 8-bit file is a quarter of the size and slightly faster, with the same accuracy overall","kind":"content","session":3,"hash":"c5d1b3b1","md":"#### [day3#waraqa-int8] The 8-bit file is a quarter of the size and slightly faster, with the same accuracy overall\n\n*Measured in Lab 3.3: ONNX Runtime, batch 1, four threads*\n\n| File | MB | Median ms | p95 ms | Accuracy | Date palm |\n| --- | --- | --- | --- | --- | --- |\n| Waraqa 32-bit | 1.16 | 4.64 | 9.84 | 99.1% | 92.7% |\n| Waraqa 8-bit | 0.31 | 3.98 | 7.86 | 99.1% | 93.8% |","notes":"Numbers from the course's run of Lab 3.3 on the 2,000 held-out leaves. The speed gain depends on the processor's integer instructions: report what you measured. Day 4 puts intervals on the accuracy differences before anyone accepts the file.","minutes":null,"lo":["LO5"]},{"id":"hasad-quantised","n":26,"title":"Hasad in 8 and 4 bits: smaller files, and quality checked by language variety","kind":"content","session":3,"hash":"7499bdd7","md":"#### [day3#hasad-quantised] Hasad in 8 and 4 bits: smaller files, and quality checked by language variety\n\n*Measured in Lab 3.3 on 200 farmer questions*\n\n| File | MB | tokens/s | Right | MSA | Gulf | Mixed |\n| --- | --- | --- | --- | --- | --- | --- |\n| 32-bit | 5.08 | 159 | 100% | 100% | 100% | 100% |\n| 8-bit, expanded once | 1.45 | 187 | 100% | 100% | 100% | 100% |\n| 4-bit, expanded once | 0.86 | 221 | 100% | 100% | 100% | 100% |\n| 4-bit, expanded per call | 0.86 | 51 | 100% | 100% | 100% | 100% |","notes":"Linear layers in groups of 32 weights with one 16-bit scale per group; the embedding table stays in 16 bits. \"Once\" turns the codes back into float32 at load: same speed and memory as float32, small file. \"Per call\" keeps codes in memory and expands each weight when used. llama.cpp's quantisation types (Q8_0, Q4_K_M and others) are block-wise in the same spirit, with kernels that compute on the blocks. Source: llama.cpp quantize README.\n\nIn the course run the three expanded files decoded at 159, 187 and 221 tokens per second on a busy machine. They do the same float32 arithmetic, so read those gaps as noise and re-run before claiming any of them; only the per-call row is slower for a reason. Hasad answered all 200 questions right in every file, so this table shows no loss; Waraqa's date palm row is where compression bites.","minutes":null,"lo":["LO5"]},{"id":"quant-speed","n":27,"title":"A smaller file is not a faster model: the runtime decides","kind":"content","session":3,"hash":"30b5b712","md":"#### [day3#quant-speed] A smaller file is not a faster model: the runtime decides\n\n*Read the table twice*\n\n- **Expand once.** Small download and disk; same memory and speed as float32.\n- **Expand per call.** Small memory; slower in a general framework that expands before multiplying.\n- **Compute on blocks.** Small memory and faster decoding, because fewer bytes are read per token. Needs a runtime built for it.","notes":"This is the lesson participants most often get wrong in capstones: they quantise, see no speed-up, and conclude quantisation does not work. Ask them which column their runtime is in.","minutes":null,"lo":["LO5"]},{"id":"checkpoint-3","n":28,"title":"Is the 8-bit file ready to ship?","kind":"quiz","session":3,"hash":"fab24833","md":"#### [day3#checkpoint-3] Is the 8-bit file ready to ship?\n\n*Checkpoint*\n\n**Question:** Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next?\n\n- A. Put intervals on the overall and per-crop differences, and compare them with the floor per crop\n- B. Ship it: 0.6 points is within a 1-point floor\n- C. Reject it: any crop that loses is unacceptable\n- D. Recalibrate with twice as many leaves and ship that","notes":"Answer: A. Recalibrating with more date-palm leaves may be the right fix afterwards, once the loss is shown to be real.","minutes":null,"lo":["LO5"]},{"id":"lab-3-3","n":29,"title":"Quantise Waraqa and Hasad","kind":"lab","session":3,"hash":"cf72d676","md":"#### [day3#lab-3-3] Quantise Waraqa and Hasad\n\nLab 3.3 · 25 min\n\nQuantise Waraqa to 8 bits, load the supplied 8-bit and 4-bit files of Hasad, and measure size, speed and quality loss on the fixed question set.\n\n[D3_3_quantisation.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D3_3_quantisation.ipynb)\n\n- [ ] Calibrate and quantise Waraqa to 8 bits (6 min)\n- [ ] Size, latency and accuracy of both Waraqa files (5 min)\n- [ ] Load Hasad's 8-bit and 4-bit files (4 min)\n- [ ] Size, speed and right answers by language variety (6 min)\n- [ ] One comparison table (4 min)\n- [ ] ✱ Stretch: Quantise Waraqa dynamically instead and compare with the static file","notes":"AI-tutor: an assistant may explain the quantisation tool's options. Usual problems: a reader that returns the same batch forever (the tool never stops); quantising without pre-processing (fewer fusions, odd results); comparing accuracy on a different subset of leaves. Hasad's quality step generates answers for every question: in quick mode it uses 60.","minutes":null,"lo":[]},{"id":"s4","n":30,"title":"Pruning or a smaller model","kind":"section","session":4,"hash":"b2983d24","md":"#### [day3#s4] Pruning or a smaller model\n\n*Session 4*\n\n- Prune whole channels by an importance score\n- Recover accuracy with brief fine-tuning\n- Compare a pruned model with a smaller one trained from scratch","notes":"","minutes":null,"lo":["LO5"]},{"id":"pruning-kinds","n":31,"title":"Zeroing weights saves nothing on dense kernels; removing channels does","kind":"content","session":4,"hash":"28924a4f","md":"#### [day3#pruning-kinds] Zeroing weights saves nothing on dense kernels; removing channels does\n\n*Pruning*\n\n- **Unstructured.** Set the smallest weights to zero anywhere. The matrices keep their shape: a dense kernel multiplies zeros as fast as other numbers.\n- **Structured.** Remove whole filters (channels). Every matrix gets smaller, so every layer does less work.","notes":"Unstructured sparsity pays off only with sparse kernels or special hardware patterns, and compresses well on disk. Source: Han, Mao and Dally, Deep compression (arXiv 1510.00149), for pruning combined with quantisation.","minutes":null,"lo":["LO5"]},{"id":"channel-scores","n":32,"title":"Score each filter by its L1 norm, keep the top half, copy the weights","kind":"content","session":4,"hash":"c3160564","md":"#### [day3#channel-scores] Score each filter by its L1 norm, keep the top half, copy the weights\n\n*Lab 3.4*\n\n```python\n# file: Lab 3.4\nscores = U.channel_scores(base)           # one tensor per convolution\nkeep = [torch.sort(torch.topk(s, len(s) // 2).indices).values\n        for s in scores]\npruned = U.prune_channels(base, keep)     # a smaller Waraqa, weights copied\nU.train_steps(pruned, x_tr, y_tr, steps, lr=5e-4)   # a short fine-tune\n```","notes":"Removing an output channel of one convolution also removes the matching input channel of the next: prune_channels handles that. L1 norm is a cheap score; others use the batch norm's scale or the effect on the loss.","minutes":null,"lo":["LO5"]},{"id":"pruning-results","n":33,"title":"Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy","kind":"content","session":4,"hash":"74096c4a","md":"#### [day3#pruning-results] Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy\n\n*Measured in Lab 3.4: batch 1, PyTorch, four threads*\n\n| Model | Parameters | MB | Median ms | Accuracy |\n| --- | --- | --- | --- | --- |\n| Waraqa | 288,746 | 1.17 | 12.8 | 99.1% |\n| Pruned, no fine-tune | 72,954 | 0.31 | 7.5 | 8.4% |\n| Pruned, 250 fine-tune steps | 72,954 | 0.31 | 7.8 | 95.6% |\n| Waraqa-S, trained small | 72,954 | 0.31 | 8.4 | 97.9% |\n| Pruned, one epoch (supplied) | 72,954 | 0.31 | 7.7 | 95.0% |","notes":"Numbers from the course's run of Lab 3.4 in full mode. Waraqa-S was trained from scratch for the same six epochs as Waraqa; the supplied pruned model was fine-tuned for one epoch.\n\nThe timings are from the lab's last step, which times all five models in turn, six rounds of 40 calls each, so that every model meets the same machine state; timed one after the other, with a fine-tune in between, the same models disagreed by up to six times between two runs. The laptop was shared and busy, so the absolute values are about twice Lab 1.2's quiet 5.7 ms: read the ratio, about 1.6 times faster with half the channels, and read Day 4's results table for speed in ONNX Runtime on a quiet machine (pruned 0.74 ms, Waraqa-S 1.00 ms, Waraqa 1.82 ms at the median). The four small models are the same architecture, so the differences among them are noise.","minutes":null,"lo":["LO5"]},{"id":"distillation-concept","n":34,"title":"Distillation trains the small model to imitate the large one's probabilities","kind":"content","session":4,"hash":"5e6a8129","md":"#### [day3#distillation-concept] Distillation trains the small model to imitate the large one's probabilities\n\n*A third route, as a concept*\n\n- The teacher's output says not only \"rust\" but \"rust, a little like leaf spot\".\n- The student learns from those soft targets as well as the labels.\n- Often beats the same small model trained on labels alone.\n\n- **When to choose which.** Prune when you own a trained large model and want a cheap result; shrink or distil when you train anyway and want the simplest artefact.","notes":"Concept level only, as the entry says. Source: Hinton, Vinyals and Dean, Distilling the knowledge in a neural network (arXiv 1503.02531). AE-310 teaches distillation in practice.","minutes":null,"lo":["LO5"]},{"id":"checkpoint-4","n":35,"title":"Why is the masked model not faster?","kind":"quiz","session":4,"hash":"31de6286","md":"#### [day3#checkpoint-4] Why is the masked model not faster?\n\n*Checkpoint*\n\n**Question:** You set half of Waraqa's convolution weights to zero by magnitude. Accuracy barely changes and latency does not change at all. Why?\n\n- A. The pruning did not take effect\n- B. The dense kernels still multiply every weight, zero or not\n- C. Batch norm undoes the pruning at inference\n- D. Only the classifier head determines latency","notes":"Answer: B. This is the lab's stretch; ask a participant who ran it to show the zero count and the unchanged timing.","minutes":null,"lo":["LO5"]},{"id":"lab-3-4","n":36,"title":"Prune or shrink","kind":"lab","session":4,"hash":"15383196","md":"#### [day3#lab-3-4] Prune or shrink\n\nLab 3.4 · 25 min\n\nPrune half of Waraqa's channels, fine-tune briefly and compare with Waraqa-S, the smaller architecture trained from scratch.\n\n[D3_4_pruning.ipynb](https://sdaiaacademy.github.io/ae-206/labs/D3_4_pruning.ipynb)\n\n- [ ] Score channels by their L1 norm (4 min)\n- [ ] Prune half and measure accuracy (5 min)\n- [ ] Fine-tune briefly (6 min)\n- [ ] Compare with Waraqa-S (5 min)\n- [ ] Size, latency and accuracy table (5 min)\n- [ ] ✱ Stretch: Mask half the weights without removing channels: does it run faster?","notes":"Usual problems: keeping indices unsorted (channels shuffle, accuracy collapses); fine-tuning at the original learning rate (the pruned model forgets); comparing with Waraqa-S on a different test subset. The supplied waraqa_pruned is the fallback for anyone whose fine-tune did not finish.","minutes":null,"lo":[]},{"id":"day-3-recap","n":37,"title":"Three things to keep from Day 3","kind":"content","session":4,"hash":"154749ec","md":"#### [day3#day-3-recap] Three things to keep from Day 3\n\n*Day 3 recap*\n\n- **Batching is a trade.** Throughput for latency, and only when requests arrive fast enough.\n- **Cache arithmetic.** 2 x layers x width x tokens x bytes, per conversation, on top of the weights.\n- **Compression is lossy.** Smaller is not faster without the right kernels, and quality moves unevenly.","notes":"Ask which compressed variant each table would ship today, and what evidence is missing. Tomorrow supplies it.","minutes":null,"lo":[]},{"id":"tomorrow-export","n":38,"title":"Export and benchmark","kind":"content","session":4,"hash":"54daf56f","md":"#### [day3#tomorrow-export] Export and benchmark\n\n*Tomorrow · Day 4*\n\nTomorrow you export Waraqa to a portable runtime and prove it matches, write a benchmark someone else can re-run within 10%, put intervals on the quality of every compressed variant by crop, and choose the one that meets Nama's budget. Then you choose your capstone model.","notes":"Ask participants to think about the capstone model tonight: Waraqa, Hasad or their own model that runs on a laptop processor or a free notebook GPU.","minutes":null,"lo":[]}],"activities":[{"id":"review-day-2-q1","slide":"review-day-2","type":"single","prompt":"Waraqa's training peak at batch 256 is about 40 times its weights, gradients and optimiser state together. Which change cuts that peak most, at the same effective batch?","options":[{"key":"A","text":"Switching AdamW for SGD to drop the optimiser state"},{"key":"B","text":"Accumulating four micro-batches of 64"},{"key":"C","text":"Storing the weights in 16 bits"},{"key":"D","text":"Folding batch norm into the convolutions"}],"correct":[1],"explanation":"Activations dominate and scale with the batch held at once; accumulation holds a quarter of them.","misconceptions":["Optimiser state is a few megabytes here; activations are the bulk","","Fewer weight bytes do not touch the activations that dominate","Folding is an inference transformation; it does not apply while batch norm is training"],"lo":["LO3"]},{"id":"checkpoint-1-q1","slide":"checkpoint-1","type":"single","prompt":"Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use?","options":[{"key":"A","text":"16, for the throughput"},{"key":"B","text":"4, a compromise"},{"key":"C","text":"1: requests are rare, so any larger batch adds seconds of waiting"},{"key":"D","text":"64, the cheapest per leaf"}],"correct":[2],"explanation":"At one leaf every two seconds, a batch of b makes leaves wait for b - 1 arrivals; only batch 1 meets a budget in milliseconds.","misconceptions":["Optimises throughput, which the office does not need; the first leaf would wait for fifteen more","Splits the difference without measuring the wait; a batch of 4 still waits for three more leaves","","Thinks the largest batch is always cheapest per leaf and therefore best"],"lo":["LO4"]},{"id":"checkpoint-2-q1","slide":"checkpoint-2","type":"single","prompt":"Farm agents start pasting a week of farm notes (2,000 characters) before each question. On a model with a context of 4,096 tokens, what changes most?","options":[{"key":"A","text":"The memory of the model's weights"},{"key":"B","text":"Tokens per second, which fall in proportion to the context"},{"key":"C","text":"The number of tokens in the answer"},{"key":"D","text":"The time to first token and the size of the key-value cache"}],"correct":[3],"explanation":"Prefill processes every prompt token and the cache stores each one; decoding adds one token at a time.","misconceptions":["Thinks the weights grow with the prompt; they are fixed","Expects decoding to slow in proportion; each decode step adds one token and reads the cache, which grows only modestly","Thinks a longer prompt makes the answer longer; answer length depends on the question",""],"lo":["LO3"]},{"id":"checkpoint-3-q1","slide":"checkpoint-3","type":"single","prompt":"Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next?","options":[{"key":"A","text":"Put intervals on the overall and per-crop differences, and compare them with the floor per crop"},{"key":"B","text":"Ship it: 0.6 points is within a 1-point floor"},{"key":"C","text":"Reject it: any crop that loses is unacceptable"},{"key":"D","text":"Recalibrate with twice as many leaves and ship that"}],"correct":[0],"explanation":"Compression changes errors unevenly; a per-group loss on a small group needs an interval before a decision. That is Lab 4.3.","misconceptions":["","Accepts on the overall number and ignores the group that lost most","Rejects on a point estimate from about 200 leaves without asking how uncertain it is","Assumes more calibration data always fixes a group's loss, before measuring whether the loss is real"],"lo":["LO5"]},{"id":"checkpoint-4-q1","slide":"checkpoint-4","type":"single","prompt":"You set half of Waraqa's convolution weights to zero by magnitude. Accuracy barely changes and latency does not change at all. Why?","options":[{"key":"A","text":"The pruning did not take effect"},{"key":"B","text":"The dense kernels still multiply every weight, zero or not"},{"key":"C","text":"Batch norm undoes the pruning at inference"},{"key":"D","text":"Only the classifier head determines latency"}],"correct":[1],"explanation":"Unstructured zeros keep every matrix the same size; only removing whole channels, or a sparse kernel, reduces work.","misconceptions":["Thinks the zeros were not applied; counting them would show they were","","Blames batch norm, which is unaffected by weight masking","Assumes latency is dominated by the head; the convolutions do almost all the work"],"lo":["LO5"]}],"ai":{"context":{"course":"../context/course.md","courseJs":"../context/course.js","day":"day3.md","llms":"../llms.txt"},"tasks":[],"tools":[]},"bridge":{"allowedOrigins":[]},"features":{},"strings":{}}</script>
+<script src="../_engine/academy.js"></script>
+</body>
+</html>

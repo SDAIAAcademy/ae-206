@@ -1,0 +1,45 @@
+{
+ "machine": "Intel(R) Core(TM) Ultra 7 265U, 4 threads",
+ "rows": [
+  {
+   "setting": "float32",
+   "ms": 929.1406499687582,
+   "per_s": 68.88085243300029,
+   "peak_mb": 323.82976,
+   "accuracy": 0.777,
+   "unit": "64 leaves per step"
+  },
+  {
+   "setting": "bfloat16 autocast",
+   "ms": 22252.298100007465,
+   "per_s": 2.8761074344936324,
+   "peak_mb": 280.121344,
+   "accuracy": 0.776,
+   "unit": "64 leaves per step"
+  },
+  {
+   "setting": "one batch of 256",
+   "ms": 3633.196999959182,
+   "per_s": 70.46135951418987,
+   "peak_mb": 1174.4256,
+   "accuracy": null,
+   "unit": "256 leaves per step"
+  },
+  {
+   "setting": "accumulation, 4 x 64",
+   "ms": 3671.073100005742,
+   "per_s": 69.7343782120818,
+   "peak_mb": 318.713856,
+   "accuracy": null,
+   "unit": "256 leaves per step"
+  },
+  {
+   "setting": "checkpointing, 4 segments, 256",
+   "ms": 4616.561400005594,
+   "per_s": 55.45252793555173,
+   "peak_mb": 807.30112,
+   "accuracy": null,
+   "unit": "256 leaves per step"
+  }
+ ]
+}

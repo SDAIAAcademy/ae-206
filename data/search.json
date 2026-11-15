@@ -1,0 +1,1525 @@
+{
+  "v": 1,
+  "engine": "1.0.0",
+  "build": {
+    "at": "2026-11-15T11:52:37Z",
+    "version": "2027.1.0",
+    "commit": "71acc15"
+  },
+  "lang": "en",
+  "dir": "ltr",
+  "slides": [
+    {
+      "deck": "day1",
+      "id": "title",
+      "n": 1,
+      "session": 0,
+      "title": "Measure first",
+      "text": "SDAIA Academy · Machine Learning Systems on One Machine Measure first Day 1: Where time goes, measured before anything is changed AI Engineering Track4 teaching days + capstone day4 sessions · 4 labsAE-206",
+      "href": "../slides/day1.html#title"
+    },
+    {
+      "deck": "day1",
+      "id": "four-days-one-machine",
+      "n": 2,
+      "session": 0,
+      "title": "Four days on one laptop, from raw data to a served prediction",
+      "text": "The course at a glance Four days on one laptop, from raw data to a served prediction Day 1 · Measure first The machine's limits, timers, profilers, an input-bound pipeline. Day 2 · Memory and training Where memory goes, mixed precision, accumulation, checkpointing, compilation. Day 3 · Inference and compression Batching, a language model on a laptop, quantisation, pruning. Day 4 · Export and benchmark A portable runtime, a benchmark you can trust, quality by group, a budget. Day 5 · Capstone. An optimisation study on a model you choose, in a public repository, defended in eight minutes with a live re-run of your benchmark.",
+      "href": "../slides/day1.html#four-days-one-machine"
+    },
+    {
+      "deck": "day1",
+      "id": "nama-agritech",
+      "n": 3,
+      "session": 0,
+      "title": "Nama Agritech: two models on old farm-office laptops",
+      "text": "One case study all week Nama Agritech: two models on old farm-office laptops A fictional farm-advisory company. Its agents visit farms with a laptop that is several years old, often offline. Waraqa ورقة Classifies a photographed leaf into healthy or one of nine diseases, on tomato, cucumber, citrus and date palm. Hasad حصاد A small language model that answers farmers' questions in Modern Standard Arabic, Gulf dialect and mixed Arabic and English. The budget Fast enough per leaf, small enough to ship, light on memory, and no quality lost where farmers would notice.",
+      "href": "../slides/day1.html#nama-agritech"
+    },
+    {
+      "deck": "day1",
+      "id": "setup-check",
+      "n": 4,
+      "session": 0,
+      "title": "Run the setup check now: it builds the data and loads both models",
+      "text": "Before Session 1 Run the setup check now: it builds the data and loads both models Colab: open 00_setup_check.ipynb from the course page and run all cells. Laptop: git clone the course, then in labs/ run uv sync and uv run jupyter lab. The check prints your processor, threads and memory, builds the held-out leaves and answers one farmer question. Its last line says whether this machine can compile models (Lab 2.4). Quick mode Set NAMA_QUICK=1 for smaller runs. Every solution finishes in minutes on a laptop processor. Write down your machine Every number this week is a number on a machine.",
+      "href": "../slides/day1.html#setup-check"
+    },
+    {
+      "deck": "day1",
+      "id": "agenda",
+      "n": 5,
+      "session": 0,
+      "title": "Measure first",
+      "text": "Today Measure first Session 1 · Compute, memory and bandwidth Compute, memory capacity and bandwidth as the three limits, and the roofline that says which one binds Session 2 · Timers, profilers and noise Timers, warm-up, variance and percentiles: why one timing is never the answer Session 3 · Profiling a training step The anatomy of a training step, read with timers and with the framework's profiler Session 4 · Fixing an input-bound pipeline Decoding, file formats, parallel workers and caching: removing an input bottleneck",
+      "href": "../slides/day1.html#agenda"
+    },
+    {
+      "deck": "day1",
+      "id": "s1",
+      "n": 6,
+      "session": 1,
+      "title": "Compute, memory and bandwidth",
+      "text": "Session 1 Compute, memory and bandwidth Estimate the FLOPs and bytes moved of a layer Place a layer on a roofline from its arithmetic intensity Name the binding limit of a described workload 01",
+      "href": "../slides/day1.html#s1"
+    },
+    {
+      "deck": "day1",
+      "id": "three-limits",
+      "n": 7,
+      "session": 1,
+      "title": "Every step is limited by compute, memory capacity or memory bandwidth",
+      "text": "What can make a step slow Every step is limited by compute, memory capacity or memory bandwidth Compute Floating-point operations per second the processor can do. A large matrix product runs into this roof. Capacity Bytes that fit at all. Too many and the run fails, or spills to slower memory. Day 2 is about this one. Bandwidth Bytes per second between memory and the cores. Elementwise layers and decoding one token at a time run into this roof. What goes wrong. Optimising the limit that does not bind. Fewer FLOPs do not help a step that waits for memory.",
+      "href": "../slides/day1.html#three-limits"
+    },
+    {
+      "deck": "day1",
+      "id": "count-flops-bytes",
+      "n": 8,
+      "session": 1,
+      "title": "Count FLOPs and bytes by hand: it takes two lines",
+      "text": "Before any timer Count FLOPs and bytes by hand: it takes two lines Layer FLOPs Bytes moved (float32) Intensity A · fully connected, batch 512, 1,024 to 1,024 2 x 512 x 1,024 x 1,024 = 1.07 G 4 x (input + weight + output) = 8.4 MB 128 FLOP/byte B · add a bias, then ReLU, on 4,096 x 4,096 2 per element = 0.034 G read and write each element = 134 MB 0.25 FLOP/byte Arithmetic intensity = FLOPs divided by bytes moved. It is a property of the layer, not of the machine.",
+      "href": "../slides/day1.html#count-flops-bytes"
+    },
+    {
+      "deck": "day1",
+      "id": "roofline-rule",
+      "n": 9,
+      "session": 1,
+      "title": "Attainable speed is the lower of two roofs",
+      "text": "The roofline idea Attainable speed is the lower of two roofs attainable = min(peak, intensity x bandwidth) Below the ridge point a layer waits for memory; above it, for arithmetic. Ridge point = peak / bandwidth The intensity at which the two roofs meet. A floor on time, never a promise: real layers sit under their roof. It tells you which roof to push: fewer bytes or fewer FLOPs. Batching raises intensity: the weights are read once for more rows.",
+      "href": "../slides/day1.html#roofline-rule"
+    },
+    {
+      "deck": "day1",
+      "id": "this-laptop",
+      "n": 10,
+      "session": 1,
+      "title": "A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte",
+      "text": "Measured in Lab 1.1 on the course's laptop A thin laptop: 138 GFLOP/s, 33.7 GB/s, a ridge at 4.1 FLOP per byte 138 GFLOP/s, a 2,048-square matrix product, 4 threads 33.7 GB/s, a 256 MB copy 4.1 FLOP per byte at the ridge Layer A (128 FLOP/byte) is far above the ridge: compute-bound. Layer B (0.25) is far below: memory-bound. Measured: A 6.7 ms against a predicted 7.8 ms; B 6.9 ms against 4.0 ms.",
+      "href": "../slides/day1.html#this-laptop"
+    },
+    {
+      "deck": "day1",
+      "id": "caches-and-reuse",
+      "n": 11,
+      "session": 1,
+      "title": "Data reused close to the cores is cheap; data fetched from main memory is not",
+      "text": "Caches and data movement Data reused close to the cores is cheap; data fetched from main memory is not Registers a few hundred bytes per core → L1 and L2 caches tens of kilobytes to a few megabytes → Last-level cache megabytes, shared → Main memory gigabytes, the bandwidth you measured Why the matrix product is fast. It works on tiles that stay in cache and reuses each number many times. The 256 MB copy cannot: it reads everything once.",
+      "href": "../slides/day1.html#caches-and-reuse"
+    },
+    {
+      "deck": "day1",
+      "id": "cpu-gpu-npu",
+      "n": 12,
+      "session": 1,
+      "title": "Each processor trades generality for throughput on dense arithmetic",
+      "text": "CPUs, GPUs and neural accelerators Each processor trades generality for throughput on dense arithmetic CPU Few strong cores with wide vector units. Good at branches, small batches and everything around the model. GPU Thousands of simple lanes and very high memory bandwidth. Needs large, regular work to stay busy. Neural accelerator Fixed-function units for matrix products in low precision, on many new laptops and phones. Needs a runtime that supports it. Same roofline, different numbers. Each has its own peak and bandwidth, so the same layer can bind differently on each.",
+      "href": "../slides/day1.html#cpu-gpu-npu"
+    },
+    {
+      "deck": "day1",
+      "id": "analytical-model",
+      "n": 13,
+      "session": 1,
+      "title": "An analytical model gives the first estimate; the measurement checks it",
+      "text": "Pre-work, used today An analytical model gives the first estimate; the measurement checks it Pre-work (labs/prework/): a reading and a roofline estimate for four workloads, by hand or with a spreadsheet. MLSys·im , from the open Machine Learning Systems textbook, models training and inference analytically. An estimate within a factor of two is useful: it says which limit to look at. LO1 evidence A worked estimate for each of four workloads that matches the reference within a stated margin, done without AI in the supervised check.",
+      "href": "../slides/day1.html#analytical-model"
+    },
+    {
+      "deck": "day1",
+      "id": "checkpoint-1",
+      "n": 14,
+      "session": 1,
+      "title": "Which layer gets faster with fewer FLOPs?",
+      "text": "Checkpoint Which layer gets faster with fewer FLOPs? On a laptop with a ridge point of 3 FLOP per byte, you can halve the FLOPs of one layer. Which layer's time falls most? A matrix product with an intensity of 120 FLOP per byte An elementwise ReLU with an intensity of 0.25 FLOP per byte A layer sitting exactly at the ridge point All three equally, since time is FLOPs over peak",
+      "href": "../slides/day1.html#checkpoint-1"
+    },
+    {
+      "deck": "day1",
+      "id": "lab-1-1",
+      "n": 15,
+      "session": 1,
+      "title": "Two layers on the roofline",
+      "text": "Lab 1.1 · 25 min Two layers on the roofline Measure the laptop's peak compute and bandwidth, estimate the arithmetic intensity of a matrix product and an elementwise layer, predict which one is memory-bound, then time both and place them on a roofline. D1_1_roofline.ipynb Measure peak compute with a large matrix product 5 min Measure bandwidth with a large copy 4 min Estimate FLOPs and bytes of both layers by hand 6 min Predict, then time both layers 5 min Place both on the roofline 5 min ✱ Stretch: Repeat the matrix product at batch 1 and watch it slide under the bandwidth roof",
+      "href": "../slides/day1.html#lab-1-1"
+    },
+    {
+      "deck": "day1",
+      "id": "s2",
+      "n": 16,
+      "session": 2,
+      "title": "Timers, profilers and noise",
+      "text": "Session 2 Timers, profilers and noise Time a call correctly with a monotonic clock and warm-up Report a distribution with its median and tail percentiles Show how background load changes the tail 02",
+      "href": "../slides/day1.html#s2"
+    },
+    {
+      "deck": "day1",
+      "id": "right-clock",
+      "n": 17,
+      "session": 2,
+      "title": "Time with a monotonic clock, around the call, many times",
+      "text": "Timers Time with a monotonic clock, around the call, many times ms = [] for _ in range(100): t0 = time.perf_counter() with torch.no_grad(): model(leaf) ms.append((time.perf_counter() - t0) * 1000) perf_counter never jumps; time.time follows the wall clock, which can be adjusted. On a GPU, call torch.cuda.synchronize() before reading the clock: the work is asynchronous. One timing is an anecdote. A hundred are a distribution.",
+      "href": "../slides/day1.html#right-clock"
+    },
+    {
+      "deck": "day1",
+      "id": "latency-distribution",
+      "n": 18,
+      "session": 2,
+      "title": "Latency has a floor and a long right tail",
+      "text": "Measured in Lab 1.2: one Waraqa inference, batch 1, 100 calls Latency has a floor and a long right tail 5.7 ms median 7.4 ms 95th percentile 8.4 ms 99th percentile Report the median and the 95th percentile. The mean is pulled up by the tail; a standard deviation assumes a bell curve that latency never has.",
+      "href": "../slides/day1.html#latency-distribution"
+    },
+    {
+      "deck": "day1",
+      "id": "cold-start",
+      "n": 19,
+      "session": 2,
+      "title": "The first call is a different event: report it, do not average it",
+      "text": "The first calls The first call is a different event: report it, do not average it 1.3 x the warm median, for the first call of a freshly loaded model (Lab 1.2) The first call allocates memory, picks kernels and fills caches. A user who opens the app pays it once; a benchmark that includes it in 100 calls hides both numbers. So: warm up, then time; and time the cold start on its own.",
+      "href": "../slides/day1.html#cold-start"
+    },
+    {
+      "deck": "day1",
+      "id": "background-load",
+      "n": 20,
+      "session": 2,
+      "title": "Background load moves the tail before the median",
+      "text": "Measured in Lab 1.2 with two busy processes Background load moves the tail before the median Machine state Median ms p95 ms p99 ms Quiet 5.7 7.4 8.4 Two processes computing in a loop 4.3 9.0 17.6 A farm-office laptop runs a browser, a sync client and an antivirus scan. Write what else was running next to every number.",
+      "href": "../slides/day1.html#background-load"
+    },
+    {
+      "deck": "day1",
+      "id": "timing-rule",
+      "n": 21,
+      "session": 2,
+      "title": "Warm up, repeat, report percentiles and the conditions",
+      "text": "The rule for the week Warm up, repeat, report percentiles and the conditions 1 · Warm up untimed calls first; the cold start reported apart → 2 · Repeat at least 100 calls on fixed inputs → 3 · Summarise median and 95th percentile, later with intervals → 4 · Record processor, threads, power mode, what else ran",
+      "href": "../slides/day1.html#timing-rule"
+    },
+    {
+      "deck": "day1",
+      "id": "timers-vs-profilers",
+      "n": 22,
+      "session": 2,
+      "title": "A timer says how long; a profiler says what ran",
+      "text": "Timers and profilers A timer says how long; a profiler says what ran Timers Cheap, honest about wall time, blind to what happened inside. Put them around phases you name. Profilers Record every operator or sample every call stack. Show where time goes inside a phase, with some overhead of their own. Use both. Timers to find the slow phase, a profiler to find why it is slow, timers again to prove the fix.",
+      "href": "../slides/day1.html#timers-vs-profilers"
+    },
+    {
+      "deck": "day1",
+      "id": "checkpoint-2",
+      "n": 23,
+      "session": 2,
+      "title": "Which number goes in the budget?",
+      "text": "Checkpoint Which number goes in the budget? 100 warm calls of Waraqa: mean 6.1 ms, median 5.2 ms, 95th percentile 9.8 ms, first call 140 ms. Ghadeer's budget says \"per leaf, in the office\". Which number do you compare with it? The mean, 6.1 ms The median, 5.2 ms The 95th percentile, 9.8 ms, with the cold start reported apart The first call, 140 ms",
+      "href": "../slides/day1.html#checkpoint-2"
+    },
+    {
+      "deck": "day1",
+      "id": "lab-1-2",
+      "n": 24,
+      "session": 2,
+      "title": "Noise in one inference",
+      "text": "Lab 1.2 · 25 min Noise in one inference Time one Waraqa inference 100 times, plot the distribution and show how the first calls and a busy machine change it. D1_2_timing_noise.ipynb Time one inference 100 times 5 min Plot the distribution and read its percentiles 5 min Cold start: the first calls against the rest 5 min Background load: repeat while another process computes 6 min Write the timing rule for the course 4 min ✱ Stretch: Change the thread count and see which percentile moves most",
+      "href": "../slides/day1.html#lab-1-2"
+    },
+    {
+      "deck": "day1",
+      "id": "s3",
+      "n": 25,
+      "session": 3,
+      "title": "Profiling a training step",
+      "text": "Session 3 Profiling a training step Split a training step into loading, forward, backward and optimiser time Read a profiler table sorted by self time Name the largest bottleneck from the measurements 03",
+      "href": "../slides/day1.html#s3"
+    },
+    {
+      "deck": "day1",
+      "id": "step-anatomy",
+      "n": 26,
+      "session": 3,
+      "title": "A training step has four phases, and any of them can be the slow one",
+      "text": "A training step A training step has four phases, and any of them can be the slow one 1 · Load read, decode, augment, batch → 2 · Forward compute the loss → 3 · Backward compute the gradients → 4 · Optimiser update the weights What goes wrong. Buying a faster processor for a step that waits for its data.",
+      "href": "../slides/day1.html#step-anatomy"
+    },
+    {
+      "deck": "day1",
+      "id": "lina-script",
+      "n": 27,
+      "session": 3,
+      "title": "Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch",
+      "text": "The supplied slow script Lina's loader decodes a 224-pixel PNG and rotates it at full size, for every leaf, every epoch img = Image.open(self.folder / name).convert(\"RGB\") # decode a PNG img = img.rotate(angle, resample=Image.BILINEAR) # augment at 224 px img = img.resize((64, 64), Image.BILINEAR) # then shrink x = torch.tensor(np.array(img), dtype=torch.float32) # one leaf at a time # ... in the main process: num_workers=0",
+      "href": "../slides/day1.html#lina-script"
+    },
+    {
+      "deck": "day1",
+      "id": "phase-timers",
+      "n": 28,
+      "session": 3,
+      "title": "Four timers split the step; on a GPU, synchronise before each reading",
+      "text": "Timers around phases Four timers split the step; on a GPU, synchronise before each reading t0 = time.perf_counter(); x, y = next(batches) t1 = time.perf_counter(); loss = F.cross_entropy(model(x), y) t2 = time.perf_counter(); loss.backward() t3 = time.perf_counter(); opt.step(); opt.zero_grad() t4 = time.perf_counter() # GPU: torch.cuda.synchronize() before each perf_counter()",
+      "href": "../slides/day1.html#phase-timers"
+    },
+    {
+      "deck": "day1",
+      "id": "profiler-table",
+      "n": 29,
+      "session": 3,
+      "title": "The profiler table: sort by self time, read the top rows",
+      "text": "Measured in Lab 1.3 with torch.profiler The profiler table: sort by self time, read the top rows Row Self CPU ms What it is enumerate(DataLoader) 879.0 the loader: reading, decoding and rotating the PNG leaves aten::convolution_backward 431.2 gradients of the six convolutions aten::mkldnn_convolution 180.5 the six convolutions, forward aten::max_pool2d_with_indices 41.8 max pooling, forward aten::native_batch_norm 36.1 batch norm, forward Self time is spent in the operator itself; total includes what it calls.",
+      "href": "../slides/day1.html#profiler-table"
+    },
+    {
+      "deck": "day1",
+      "id": "lina-ranking",
+      "n": 30,
+      "session": 3,
+      "title": "Lina's step is input-bound: loading is the largest phase",
+      "text": "Measured in Lab 1.3: median of the timed steps, batch 64 Lina's step is input-bound: loading is the largest phase Loading 1,420 ms, 66% Backward 385 ms, 18% Forward 342 ms, 16% Optimiser 5 ms, 0.2% One step: 2,142 ms. One epoch of 16,000 leaves at this rate: about 9 minutes.",
+      "href": "../slides/day1.html#lina-ranking"
+    },
+    {
+      "deck": "day1",
+      "id": "amdahl-ceiling",
+      "n": 31,
+      "session": 3,
+      "title": "Removing one phase can never beat the sum of the others",
+      "text": "The ceiling of a fix Removing one phase can never beat the sum of the others 2.9 x the most Lina's step can gain if loading cost nothing (Lab 1.3) Speed-up limit = 1 / (1 - share of the phase you fix). Compute this before you start: it says whether the fix is worth a day. After the fix, the next phase is the bottleneck: measure again.",
+      "href": "../slides/day1.html#amdahl-ceiling"
+    },
+    {
+      "deck": "day1",
+      "id": "flame-graphs",
+      "n": 32,
+      "session": 3,
+      "title": "A flame graph shows the whole program, loader included",
+      "text": "Python-level profilers A flame graph shows the whole program, loader included Sampling profilers (py-spy) read the call stack many times a second; width of a tower is time. Scalene separates Python time, native time and memory per line. memray tracks every allocation (Linux and macOS only). py-spy record -o artifacts/lina.svg \\ -- python lina_train.py --steps 10",
+      "href": "../slides/day1.html#flame-graphs"
+    },
+    {
+      "deck": "day1",
+      "id": "checkpoint-3",
+      "n": 33,
+      "session": 3,
+      "title": "What do you fix first?",
+      "text": "Checkpoint What do you fix first? A step's phases: loading 60%, backward 25%, forward 13%, optimiser 2%. The profiler's largest operator row is convolution_backward. What do you work on first? The backward convolution, the largest profiler row Loading, the largest measured phase The optimiser, by switching to SGD A faster processor for forward and backward",
+      "href": "../slides/day1.html#checkpoint-3"
+    },
+    {
+      "deck": "day1",
+      "id": "lab-1-3",
+      "n": 34,
+      "session": 3,
+      "title": "Profile Lina's training step",
+      "text": "Lab 1.3 · 25 min Profile Lina's training step Profile one step of the slow training script on the field app's PNG export and rank data loading, forward pass, backward pass and optimiser time. D1_3_profile_step.ipynb Run the slow script and time its first steps 4 min Time each phase with timers 6 min Profile one step with the framework profiler 6 min Rank the four phases 5 min Name the largest bottleneck 4 min ✱ Stretch: Record a flame graph of the same script with py-spy",
+      "href": "../slides/day1.html#lab-1-3"
+    },
+    {
+      "deck": "day1",
+      "id": "s4",
+      "n": 35,
+      "session": 4,
+      "title": "Fixing an input-bound pipeline",
+      "text": "Session 4 Fixing an input-bound pipeline Tell an input-bound step from a compute-bound one Add parallel loading and a cache of preprocessed data Measure the speed-up and say which change bought it 04",
+      "href": "../slides/day1.html#s4"
+    },
+    {
+      "deck": "day1",
+      "id": "input-bound",
+      "n": 36,
+      "session": 4,
+      "title": "A step is input-bound when the model waits for its next batch",
+      "text": "Input-bound against compute-bound A step is input-bound when the model waits for its next batch Input-bound Loading is the largest phase. A faster model changes nothing. Fix the pipeline. Compute-bound Forward and backward dominate. The pipeline is good enough. Days 2 and 3 work here. Signs. A GPU at low utilisation; one core at 100% while others idle; step time that does not change with model size.",
+      "href": "../slides/day1.html#input-bound"
+    },
+    {
+      "deck": "day1",
+      "id": "formats-decode",
+      "n": 37,
+      "session": 4,
+      "title": "Decoding is compute too, and the file format sets its price",
+      "text": "Measured in Lab 1.4: one leaf, 50 decodes Decoding is compute too, and the file format sets its price Format of one leaf Decode ms Size kB PNG, 224 pixels (the field app's export) 1.85 119 JPEG quality 90, 64 pixels 0.17 1.4 JPEG is lossy: the two decoded leaves differ by 2.5 of 255 per pixel on average. Whether that matters is a quality question, measured, not seen.",
+      "href": "../slides/day1.html#formats-decode"
+    },
+    {
+      "deck": "day1",
+      "id": "parallel-workers",
+      "n": 38,
+      "session": 4,
+      "title": "Workers prepare the next batches while the model trains on this one",
+      "text": "Parallel loading and prefetching Workers prepare the next batches while the model trains on this one DataLoader(ds, batch_size=64, shuffle=True, num_workers=4, persistent_workers=True, prefetch_factor=2) Workers hide loading behind compute; they do not make it cheaper. They take cores the training step also wants. On Windows and macOS each worker is a fresh Python process: the first batch is slow.",
+      "href": "../slides/day1.html#parallel-workers"
+    },
+    {
+      "deck": "day1",
+      "id": "cache-preprocessed",
+      "n": 39,
+      "session": 4,
+      "title": "Decode once, store the 64-pixel bytes, read bytes every epoch",
+      "text": "Caching preprocessed data Decode once, store the 64-pixel bytes, read bytes every epoch 50 MB for 4,096 leaves as one uint8 array, built once in 88 s (Lab 1.4) The cache is right when preprocessing is the same every epoch. It is wrong when augmentation must differ each epoch at full size, or when the data changes faster than the cache. What it changed besides speed. Lina rotated by any angle; the cache rotates by multiples of 90 degrees. A speed-up that changes what the model learns is checked for quality.",
+      "href": "../slides/day1.html#cache-preprocessed"
+    },
+    {
+      "deck": "day1",
+      "id": "pipeline-before-after",
+      "n": 40,
+      "session": 4,
+      "title": "The before-and-after table is the evidence, not the code change",
+      "text": "Measured in Lab 1.4, full mode The before-and-after table is the evidence, not the code change Pipeline Step ms Loading ms Speed-up Baseline (Lina) 1,059 343 1.0x 4 workers 1,001 1 1.1x Cache, main process 725 11 1.5x Cache, 4 workers 693 0 1.5x When loading is near zero the step is compute-bound: what is left is forward, backward and the optimiser.",
+      "href": "../slides/day1.html#pipeline-before-after"
+    },
+    {
+      "deck": "day1",
+      "id": "checkpoint-4",
+      "n": 41,
+      "session": 4,
+      "title": "Loading vanished. Why is the step only a little faster?",
+      "text": "Checkpoint Loading vanished. Why is the step only a little faster? With four workers, the loading phase drops from 800 ms to almost zero, but the step goes from 2,900 ms to 2,200 ms. What explains it? The workers are not running It is timer noise; the real speed-up is larger Decoding became cheaper, but not by enough The rest of the step was always about 2,100 ms, and the workers take cores from it",
+      "href": "../slides/day1.html#checkpoint-4"
+    },
+    {
+      "deck": "day1",
+      "id": "lab-1-4",
+      "n": 42,
+      "session": 4,
+      "title": "Fix the input pipeline",
+      "text": "Lab 1.4 · 25 min Fix the input pipeline Add parallel loading, a cache of decoded images and a faster image format to Lina's loader and measure the change in step time. D1_4_input_pipeline.ipynb Baseline: step time and loader time 4 min Parallel workers 6 min Cache the decoded images 6 min A faster image format 5 min The before-and-after table 4 min ✱ Stretch: Find the worker count after which the step stops getting faster",
+      "href": "../slides/day1.html#lab-1-4"
+    },
+    {
+      "deck": "day1",
+      "id": "day-1-recap",
+      "n": 43,
+      "session": 4,
+      "title": "Three things to keep from Day 1",
+      "text": "Day 1 recap Three things to keep from Day 1 Know the roof Count FLOPs and bytes; the intensity says whether compute or bandwidth binds. Distributions, not numbers Warm up, repeat, report the median and the 95th percentile and the machine. Largest phase first Time the phases, profile the largest, fix it, measure again.",
+      "href": "../slides/day1.html#day-1-recap"
+    },
+    {
+      "deck": "day1",
+      "id": "tomorrow-memory",
+      "n": 44,
+      "session": 4,
+      "title": "Memory and training efficiency",
+      "text": "Tomorrow · Day 2 Memory and training efficiency Tomorrow you estimate what a training step holds in memory and check it against a measured peak, then test mixed precision, gradient accumulation, activation checkpointing and compilation on Waraqa. Bring your Lab 1.1 peak and bandwidth figures.",
+      "href": "../slides/day1.html#tomorrow-memory"
+    },
+    {
+      "deck": "day2",
+      "id": "title",
+      "n": 1,
+      "session": 0,
+      "title": "Memory and training efficiency",
+      "text": "SDAIA Academy · Machine Learning Systems on One Machine Memory and training efficiency Day 2: Memory first, then the three ways to train faster in it AI Engineering Track4 teaching days + capstone day4 sessions · 4 labsAE-206",
+      "href": "../slides/day2.html#title"
+    },
+    {
+      "deck": "day2",
+      "id": "agenda",
+      "n": 2,
+      "session": 0,
+      "title": "Memory and training efficiency",
+      "text": "Today Memory and training efficiency Session 1 · Where memory goes Weights, gradients, optimiser state and activations: an estimate you can check Session 2 · Mixed precision Number formats, autocast and what the hardware actually accelerates Session 3 · Accumulation and checkpointing Gradient accumulation and activation checkpointing: a large batch in fixed memory Session 4 · Compilation and fusion Graphs, operator fusion and compilation: the first-call cost and the steady state",
+      "href": "../slides/day2.html#agenda"
+    },
+    {
+      "deck": "day2",
+      "id": "review-day-1",
+      "n": 3,
+      "session": 0,
+      "title": "Which measurement settles it?",
+      "text": "Review of Day 1 Which measurement settles it? Lina says her new loader made training \"much faster\". She shows one epoch timed before (31 min) and one after (24 min), each run once, on different days. What do you ask for? Nothing: 7 minutes is too large to be noise Phase times of both loaders over the same steps on the same machine, start-up excluded The framework profiler's operator table for the new loader The roofline estimate of the loader",
+      "href": "../slides/day2.html#review-day-1"
+    },
+    {
+      "deck": "day2",
+      "id": "s1",
+      "n": 4,
+      "session": 1,
+      "title": "Where memory goes",
+      "text": "Session 1 Where memory goes Compute the bytes of weights, gradients and optimiser state Estimate activation memory from layer shapes and batch size Explain the gap between an estimate and a measured peak 01",
+      "href": "../slides/day2.html#s1"
+    },
+    {
+      "deck": "day2",
+      "id": "four-parts-of-memory",
+      "n": 5,
+      "session": 1,
+      "title": "Training memory has four parts, and only one grows with the batch",
+      "text": "What a training step holds Training memory has four parts, and only one grows with the batch Weights 4 bytes per parameter in float32. Gradients One per weight: another 4 bytes. Optimiser state AdamW keeps two numbers per weight: 8 bytes. Activations What the forward pass keeps for the backward pass: grows with batch and image size. Rule of thumb. 16 bytes per parameter before any activation, for float32 and AdamW.",
+      "href": "../slides/day2.html#four-parts-of-memory"
+    },
+    {
+      "deck": "day2",
+      "id": "activation-estimate",
+      "n": 6,
+      "session": 1,
+      "title": "Each convolution block keeps about two tensors the size of its output",
+      "text": "Estimate by hand Each convolution block keeps about two tensors the size of its output Block output (per leaf) Numbers 32 x 64 x 64, twice 2 x 131,072 64 x 32 x 32, twice 2 x 65,536 128 x 16 x 16 32,768 128 x 8 x 8 8,192 Sum, x 2 tensors x 4 bytes about 3.5 MB per leaf",
+      "href": "../slides/day2.html#activation-estimate"
+    },
+    {
+      "deck": "day2",
+      "id": "memory-measured",
+      "n": 7,
+      "session": 1,
+      "title": "Activations dominate, and grow in proportion to the batch",
+      "text": "Measured in Lab 2.1: one AdamW step of Waraqa Activations dominate, and grow in proportion to the batch Batch Estimate MB Saved activations MB Measured peak MB 16 60 67 94 64 227 270 325 256 894 1,078 1,165 Saved activations are counted exactly by autograd hooks; the peak is the process's resident memory, sampled during the step.",
+      "href": "../slides/day2.html#memory-measured"
+    },
+    {
+      "deck": "day2",
+      "id": "memory-gaps",
+      "n": 8,
+      "session": 1,
+      "title": "Each gap between estimate and measurement has a name",
+      "text": "Explain every difference Each gap between estimate and measurement has a name Estimate < saved Pooling indices (8-byte integers) and the input batch were not counted. Saved < peak Gradients of activations and convolution work buffers are alive during the backward pass. Small batches Fixed costs dominate: weights, optimiser state, the allocator's own reserve. LO3 evidence. The estimate table next to the measured peaks, with each difference explained in a line.",
+      "href": "../slides/day2.html#memory-gaps"
+    },
+    {
+      "deck": "day2",
+      "id": "memory-scaling",
+      "n": 9,
+      "session": 1,
+      "title": "For a language model, the fixed part is the problem before any batch",
+      "text": "The same arithmetic, scaled up For a language model, the fixed part is the problem before any batch Model Weights, float32 + gradients + AdamW Waraqa, 0.29 M parameters 1.2 MB 4.6 MB A 1 B parameter model 4 GB 16 GB A 7 B parameter model 28 GB 112 GB That is why language models are trained in reduced precision with sharded optimiser state, and served with quantised weights (Day 3).",
+      "href": "../slides/day2.html#memory-scaling"
+    },
+    {
+      "deck": "day2",
+      "id": "checkpoint-1",
+      "n": 10,
+      "session": 1,
+      "title": "What happens at batch 512?",
+      "text": "Checkpoint What happens at batch 512? Waraqa's step peaks at 1,000 MB at batch 256, of which about 10 MB is weights, gradients and optimiser state. Predict the peak at batch 512. About 1,010 MB: only the batch's input grows About 4,000 MB: memory grows with the square of the batch About 3,000 MB: the optimiser state triples About 2,000 MB: the activations double, the fixed part does not",
+      "href": "../slides/day2.html#checkpoint-1"
+    },
+    {
+      "deck": "day2",
+      "id": "lab-2-1",
+      "n": 11,
+      "session": 1,
+      "title": "Memory at three batch sizes",
+      "text": "Lab 2.1 · 25 min Memory at three batch sizes Estimate, then measure, peak training memory of Waraqa for weights, activations and optimiser state at batch 16, 64 and 256. D2_1_memory_budget.ipynb Count weights, gradients and optimiser state 5 min Estimate activations by hand 6 min Measure peak memory at three batch sizes 7 min Explain each difference 4 min Predict batch 512 before running it 3 min ✱ Stretch: Swap AdamW for SGD with momentum and predict the change first",
+      "href": "../slides/day2.html#lab-2-1"
+    },
+    {
+      "deck": "day2",
+      "id": "s2",
+      "n": 12,
+      "session": 2,
+      "title": "Mixed precision",
+      "text": "Session 2 Mixed precision Choose between float32, float16 and bfloat16 for a step Train with autocast and compare time and accuracy Read whether a processor has native support before expecting a speed-up 02",
+      "href": "../slides/day2.html#s2"
+    },
+    {
+      "deck": "day2",
+      "id": "number-formats",
+      "n": 13,
+      "session": 2,
+      "title": "Sixteen bits buy half the bytes and give up range or precision",
+      "text": "Number formats (recap of AE-202) Sixteen bits buy half the bytes and give up range or precision Format Bits Exponent / fraction Gives up float32 32 8 / 23 nothing: the reference float16 16 5 / 10 range: small gradients underflow to zero bfloat16 16 8 / 7 precision: the range of float32, fewer digits int8 8 integer with a scale both, recovered by calibration (Day 3)",
+      "href": "../slides/day2.html#number-formats"
+    },
+    {
+      "deck": "day2",
+      "id": "autocast",
+      "n": 14,
+      "session": 2,
+      "title": "Autocast runs the heavy operations in 16 bits and keeps the rest in 32",
+      "text": "Mixed precision Autocast runs the heavy operations in 16 bits and keeps the rest in 32 with torch.autocast(\"cpu\", dtype=torch.bfloat16): out = model(x) # convolutions in bfloat16 loss = F.cross_entropy(out.float(), y) loss.backward() # gradients flow back opt.step() # float32 master weights Mixed : weights and optimiser stay in float32; small updates would vanish in 16 bits. On a CPU, autocast defaults to bfloat16; on a GPU to float16. float16 needs a gradient scaler to keep small gradients from underflowing.",
+      "href": "../slides/day2.html#autocast"
+    },
+    {
+      "deck": "day2",
+      "id": "hardware-support",
+      "n": 15,
+      "session": 2,
+      "title": "Reduced precision is faster only where the hardware computes in it",
+      "text": "Ask the hardware first Reduced precision is faster only where the hardware computes in it PyTorch reports the vector extensions it uses: torch.backends.cpu.get_cpu_capability(). The course laptop reports AVX2: no native bfloat16 arithmetic. Without it, bfloat16 numbers are converted to float32 to compute and back: extra work. Predict before you run Write down faster, same or slower. Then measure.",
+      "href": "../slides/day2.html#hardware-support"
+    },
+    {
+      "deck": "day2",
+      "id": "precision-result",
+      "n": 16,
+      "session": 2,
+      "title": "On a processor without native bfloat16, autocast made each step 24 times slower, at the same accuracy",
+      "text": "Measured in Lab 2.2: 12 steps of 64 leaves from the warm-start checkpoint On a processor without native bfloat16, autocast made each step 24 times slower, at the same accuracy Setting ms per step Leaves per s Peak MB Val accuracy float32 929 69 324 0.777 bfloat16 autocast 22,252 3 280 0.776 The blog post's \"twice as fast\" may hold on its hardware. On this one, the measurement decides.",
+      "href": "../slides/day2.html#precision-result"
+    },
+    {
+      "deck": "day2",
+      "id": "claims-and-hardware",
+      "n": 17,
+      "session": 2,
+      "title": "A speed-up without its hardware, settings and quality is not a result",
+      "text": "Reading a speed-up claim A speed-up without its hardware, settings and quality is not a result Hardware which processor, which extensions → Settings batch, threads, what was measured → Both sides the same steps, the same data → Quality accuracy after, on the same set",
+      "href": "../slides/day2.html#claims-and-hardware"
+    },
+    {
+      "deck": "day2",
+      "id": "checkpoint-2",
+      "n": 18,
+      "session": 2,
+      "title": "Why did bfloat16 not help here?",
+      "text": "Checkpoint Why did bfloat16 not help here? On a laptop whose processor reports AVX2 only, bfloat16 autocast made Waraqa's training step slower with the same accuracy. What is the best explanation? The model is too small to benefit from any optimisation bfloat16 lost precision, so the step had to do more work The processor has no native bfloat16 arithmetic, so each operation pays for conversions The optimiser now runs in bfloat16 and needs more steps",
+      "href": "../slides/day2.html#checkpoint-2"
+    },
+    {
+      "deck": "day2",
+      "id": "lab-2-2",
+      "n": 19,
+      "session": 2,
+      "title": "Reduced precision",
+      "text": "Lab 2.2 · 25 min Reduced precision Train Waraqa from a warm-start checkpoint with and without bfloat16 autocast and compare time per step and validation accuracy. D2_2_mixed_precision.ipynb What this processor supports 3 min Train in 32-bit for a fixed number of steps 6 min Train the same steps with bfloat16 autocast 6 min Validation accuracy of both 5 min The results row for each setting 5 min ✱ Stretch: On a Colab GPU, float16 autocast with a gradient scaler",
+      "href": "../slides/day2.html#lab-2-2"
+    },
+    {
+      "deck": "day2",
+      "id": "s3",
+      "n": 20,
+      "session": 3,
+      "title": "Accumulation and checkpointing",
+      "text": "Session 3 Accumulation and checkpointing Reach an effective batch with gradient accumulation Trade recomputation for memory with activation checkpointing Verify that a memory saving did not change the gradient 03",
+      "href": "../slides/day2.html#s3"
+    },
+    {
+      "deck": "day2",
+      "id": "effective-batch",
+      "n": 21,
+      "session": 3,
+      "title": "Lina's recipe needs an effective batch of 256; the budget allows 400 MB",
+      "text": "The problem Lina's recipe needs an effective batch of 256; the budget allows 400 MB 1,174 MB measured peak of one batch of 256 (Lab 2.3) Mutaib's rule: monthly retraining on a farm-office laptop may use at most 400 MB above the process at rest. The learning rate and schedule were tuned for 256: a smaller batch changes training. Two ways to keep 256: accumulate, or recompute.",
+      "href": "../slides/day2.html#effective-batch"
+    },
+    {
+      "deck": "day2",
+      "id": "gradient-accumulation",
+      "n": 22,
+      "session": 3,
+      "title": "Four micro-batches of 64, one optimiser step",
+      "text": "Gradient accumulation Four micro-batches of 64, one optimiser step for xm, ym in zip(x.chunk(4), y.chunk(4)): loss = F.cross_entropy(model(xm), ym) / 4 loss.backward() # gradients add up in .grad opt.step() opt.zero_grad() Divide each loss by the number of micro-batches: the sum is the mean over 256. Activations of one micro-batch at a time: about a quarter of the memory. Costs time: four smaller calls do less work in parallel.",
+      "href": "../slides/day2.html#gradient-accumulation"
+    },
+    {
+      "deck": "day2",
+      "id": "same-gradient",
+      "n": 23,
+      "session": 3,
+      "title": "Accumulation equals a large batch only for layers that treat each example alone",
+      "text": "Checked in Lab 2.3 Accumulation equals a large batch only for layers that treat each example alone Batch norm mode Largest relative gradient difference Evaluation (stored statistics) 3.8e-05 Training (statistics per batch) 1.2 With batch norm, each micro-batch is normalised by its own statistics. It usually trains fine; it is not the same computation.",
+      "href": "../slides/day2.html#same-gradient"
+    },
+    {
+      "deck": "day2",
+      "id": "activation-checkpointing",
+      "n": 24,
+      "session": 3,
+      "title": "Keep a few activations, recompute the rest during the backward pass",
+      "text": "Activation checkpointing Keep a few activations, recompute the rest during the backward pass from torch.utils.checkpoint import checkpoint_sequential feats = checkpoint_sequential(model.features, 4, x, use_reentrant=False) logits = model.head(feats.mean(dim=(2, 3))) Only the boundaries of 4 segments are kept; each segment's inside is recomputed when its gradient is needed. Trades about one extra forward pass for memory. The idea is from Chen et al., 2016: memory that grows more slowly than depth.",
+      "href": "../slides/day2.html#activation-checkpointing"
+    },
+    {
+      "deck": "day2",
+      "id": "fit-table",
+      "n": 25,
+      "session": 3,
+      "title": "Accumulation fits; checkpointing cuts memory, not enough here",
+      "text": "Measured in Lab 2.3, budget 400 MB Accumulation fits; checkpointing cuts memory, not enough here Method Peak MB Fits s per step Time One batch of 256 1,174 no 3.63 1.00x Accumulation, 4 x 64 319 yes 3.67 1.01x Checkpointing, 4 segments, 256 807 no 4.62 1.27x",
+      "href": "../slides/day2.html#fit-table"
+    },
+    {
+      "deck": "day2",
+      "id": "checkpoint-3",
+      "n": 26,
+      "session": 3,
+      "title": "What does activation checkpointing reduce?",
+      "text": "Checkpoint What does activation checkpointing reduce? A language model of 2 B parameters does not fit for training on a 24 GB GPU even at batch 1. Will activation checkpointing make it fit? Unlikely: weights, gradients and AdamW state already need about 32 GB, which checkpointing does not touch Yes: checkpointing reduces all training memory Not alone, but gradient accumulation will Yes, if the checkpoints are written to disk",
+      "href": "../slides/day2.html#checkpoint-3"
+    },
+    {
+      "deck": "day2",
+      "id": "lab-2-3",
+      "n": 27,
+      "session": 3,
+      "title": "A large batch in fixed memory",
+      "text": "Lab 2.3 · 25 min A large batch in fixed memory Fit an effective batch of 256 into Nama's training memory budget with gradient accumulation and activation checkpointing, and measure what each costs in time. D2_3_accumulate_checkpoint.ipynb Batch 256 against the budget 4 min Accumulation: four micro-batches of 64 6 min Check: the same gradient as one large batch 5 min Activation checkpointing 6 min Memory and time per method 4 min ✱ Stretch: Checkpoint two segments against four and find the cheapest that fits",
+      "href": "../slides/day2.html#lab-2-3"
+    },
+    {
+      "deck": "day2",
+      "id": "s4",
+      "n": 28,
+      "session": 4,
+      "title": "Compilation and fusion",
+      "text": "Session 4 Compilation and fusion Fold a batch norm into the convolution before it Measure a compiler's first-call cost against its steady-state gain Complete a results table of time, memory and accuracy per setting 04",
+      "href": "../slides/day2.html#s4"
+    },
+    {
+      "deck": "day2",
+      "id": "why-fusion",
+      "n": 29,
+      "session": 4,
+      "title": "Separate operations read and write the whole activation each time",
+      "text": "Operator fusion Separate operations read and write the whole activation each time Convolution writes z → Batch norm reads z, writes y → ReLU reads y, writes y Fused. One kernel computes the convolution, the affine map and the ReLU while the data is still in cache: one write instead of three.",
+      "href": "../slides/day2.html#why-fusion"
+    },
+    {
+      "deck": "day2",
+      "id": "fold-batch-norm",
+      "n": 30,
+      "session": 4,
+      "title": "At inference, batch norm folds into the convolution's weights",
+      "text": "One fusion by hand At inference, batch norm folds into the convolution's weights s = bn.weight / torch.sqrt(bn.running_var + bn.eps) W_new = conv.weight * s.reshape(-1, 1, 1, 1) b_new = bn.bias - bn.running_mean * s At inference batch norm is a fixed affine map per channel; a convolution is linear: the two combine. Not during training: the statistics change every batch. Outputs agree to rounding: largest logit difference 5.7e-06 in Lab 2.4.",
+      "href": "../slides/day2.html#fold-batch-norm"
+    },
+    {
+      "deck": "day2",
+      "id": "compilers",
+      "n": 31,
+      "session": 4,
+      "title": "A compiler captures the graph, fuses operations and generates code once",
+      "text": "Compilation A compiler captures the graph, fuses operations and generates code once torch.compile(model): capture on the first call, then reuse the generated code. Its default backend generates C++ for processors: it needs a C++ compiler. Colab, Linux and macOS usually have one; the course's Windows laptop did not. Two numbers, always The first-call cost (capture and code generation) and the steady-state speed per call.",
+      "href": "../slides/day2.html#compilers"
+    },
+    {
+      "deck": "day2",
+      "id": "compile-result",
+      "n": 32,
+      "session": 4,
+      "title": "Folding batch norm bought 6%; compiling bought nothing here, after a 13-second first call",
+      "text": "Measured in Lab 2.4: inference, batch 32 Folding batch norm bought 6%; compiling bought nothing here, after a 13-second first call Setting ms per batch Leaves per s Accuracy Eager 130.3 246 99.1% Batch norm folded 122.3 262 99.1% Folded and compiled (aot_eager) 135.0 237 99.1% First call with compilation: 13.0 s (backend aot_eager).",
+      "href": "../slides/day2.html#compile-result"
+    },
+    {
+      "deck": "day2",
+      "id": "lo4-results",
+      "n": 33,
+      "session": 4,
+      "title": "One table: time, throughput, peak memory and accuracy per setting",
+      "text": "The day's evidence One table: time, throughput, peak memory and accuracy per setting Training rows: float32, bfloat16 autocast, accumulation, checkpointing. Inference rows: eager, batch norm folded, compiled. Each row names its machine, batch and threads. LO4 evidence A results table with time per step, throughput, peak memory and accuracy for each setting.",
+      "href": "../slides/day2.html#lo4-results"
+    },
+    {
+      "deck": "day2",
+      "id": "checkpoint-4",
+      "n": 34,
+      "session": 4,
+      "title": "Is compilation worth it here?",
+      "text": "Checkpoint Is compilation worth it here? Compiling Waraqa costs 20 s on the first call and saves 2 ms per batch. The field app starts, classifies about 50 leaves, and closes. Should it compile at start-up? Yes: 2 ms per batch is a 20% gain No: 50 leaves save well under a second, and the agent waits 20 s at every start No: compilation lowers accuracy Yes: the gain grows the longer the laptop runs",
+      "href": "../slides/day2.html#checkpoint-4"
+    },
+    {
+      "deck": "day2",
+      "id": "lab-2-4",
+      "n": 35,
+      "session": 4,
+      "title": "Compile and fuse",
+      "text": "Lab 2.4 · 25 min Compile and fuse Fold batch norm into Waraqa's convolutions by hand, compile the model where a compiler is available, and measure the first-call cost and the steady-state speed-up. D2_4_compile_fusion.ipynb Eager baseline 4 min Fold batch norm into the convolution 7 min Check that the outputs match 4 min Compile: first call and steady state 6 min Complete the results table 4 min ✱ Stretch: In Colab, compare the default compile mode with max-autotune",
+      "href": "../slides/day2.html#lab-2-4"
+    },
+    {
+      "deck": "day2",
+      "id": "day-2-recap",
+      "n": 36,
+      "session": 4,
+      "title": "Three things to keep from Day 2",
+      "text": "Day 2 recap Three things to keep from Day 2 Estimate, then measure 16 bytes per parameter plus activations that scale with the batch; name every gap. Hardware decides Reduced precision and compilers help where the machine supports them. Measure on yours. Memory for time Accumulation and checkpointing fit a batch into a budget and pay in time.",
+      "href": "../slides/day2.html#day-2-recap"
+    },
+    {
+      "deck": "day2",
+      "id": "tomorrow-inference",
+      "n": 37,
+      "session": 4,
+      "title": "Inference and compression",
+      "text": "Tomorrow · Day 3 Inference and compression Tomorrow you serve Waraqa at batch sizes from 1 to 64, run Hasad on the laptop and size its key-value cache, decide which farmer questions may leave the device, then quantise and prune both models and measure what each change costs in quality.",
+      "href": "../slides/day2.html#tomorrow-inference"
+    },
+    {
+      "deck": "day3",
+      "id": "title",
+      "n": 1,
+      "session": 0,
+      "title": "Inference and compression",
+      "text": "SDAIA Academy · Machine Learning Systems on One Machine Inference and compression Day 3: Serving one prediction fast, then making the model smaller AI Engineering Track4 teaching days + capstone day4 sessions · 4 labsAE-206",
+      "href": "../slides/day3.html#title"
+    },
+    {
+      "deck": "day3",
+      "id": "agenda",
+      "n": 2,
+      "session": 0,
+      "title": "Inference and compression",
+      "text": "Today Inference and compression Session 1 · Latency, throughput and batching Latency against throughput, batching and the queue that batching creates Session 2 · Language model inference on a laptop Prefill and decode, the key-value cache and its arithmetic, and which questions may leave the device Session 3 · Quantisation Quantisation formats, scales and calibration, for a classifier and a language model Session 4 · Pruning or a smaller model Unstructured and structured pruning, a smaller architecture, and distillation as an idea",
+      "href": "../slides/day3.html#agenda"
+    },
+    {
+      "deck": "day3",
+      "id": "review-day-2",
+      "n": 3,
+      "session": 0,
+      "title": "Where did the memory go?",
+      "text": "Review of Day 2 Where did the memory go? Waraqa's training peak at batch 256 is about 40 times its weights, gradients and optimiser state together. Which change cuts that peak most, at the same effective batch? Switching AdamW for SGD to drop the optimiser state Accumulating four micro-batches of 64 Storing the weights in 16 bits Folding batch norm into the convolutions",
+      "href": "../slides/day3.html#review-day-2"
+    },
+    {
+      "deck": "day3",
+      "id": "s1",
+      "n": 4,
+      "session": 1,
+      "title": "Latency, throughput and batching",
+      "text": "Session 1 Latency, throughput and batching Measure latency and throughput across batch sizes Explain why batching raises throughput and latency together Choose a batch size for a latency budget 01",
+      "href": "../slides/day3.html#s1"
+    },
+    {
+      "deck": "day3",
+      "id": "latency-vs-throughput",
+      "n": 5,
+      "session": 1,
+      "title": "Latency is how long one request waits; throughput is how many finish per second",
+      "text": "Two kinds of work at Nama Latency is how long one request waits; throughput is how many finish per second In the office: latency An agent photographs one leaf and waits. Budget: 15 ms at the 95th percentile. At night: throughput The office re-scores the day's archive. Nobody waits for one leaf; the job must finish.",
+      "href": "../slides/day3.html#latency-vs-throughput"
+    },
+    {
+      "deck": "day3",
+      "id": "batch-sweep",
+      "n": 6,
+      "session": 1,
+      "title": "Batching raises throughput until the cores are busy, and raises latency all the way",
+      "text": "Measured in Lab 3.1: Waraqa in PyTorch, four threads Batching raises throughput until the cores are busy, and raises latency all the way Batch Median ms per batch ms per leaf Leaves per s 1 7.9 7.9 126 2 12.5 6.3 159 4 19.7 4.9 203 8 37.8 4.7 212 16 81.0 5.1 198 32 212.2 6.6 151 64 318.2 5.0 201",
+      "href": "../slides/day3.html#batch-sweep"
+    },
+    {
+      "deck": "day3",
+      "id": "batch-wait",
+      "n": 7,
+      "session": 1,
+      "title": "A batch does not exist until its requests arrive",
+      "text": "The hidden cost A batch does not exist until its requests arrive average wait = (b - 1) / (2 x rate) plus the batch's own time. At 2 leaves per second a batch of 8 makes the average leaf wait about 1.75 s before computing starts. Office, 2 leaves per second: batch 1 is the only batch that meets the budget. Night archive, 200 per second: larger batches fill fast and serve more. Servers batch dynamically: up to b requests or t milliseconds, whichever comes first.",
+      "href": "../slides/day3.html#batch-wait"
+    },
+    {
+      "deck": "day3",
+      "id": "goodput",
+      "n": 8,
+      "session": 1,
+      "title": "Count only the requests served within the objective",
+      "text": "Goodput against a service objective Count only the requests served within the objective 500 x 50% = 250 leaves per second of goodput, for a server that answers 500 per second with half of them late Throughput counts everything; goodput counts what the user accepts. A larger batch can raise throughput and lower goodput. Load tests of a real service measure it: AE-205 does that under load.",
+      "href": "../slides/day3.html#goodput"
+    },
+    {
+      "deck": "day3",
+      "id": "checkpoint-1",
+      "n": 9,
+      "session": 1,
+      "title": "Which batch size for the office?",
+      "text": "Checkpoint Which batch size for the office? Waraqa serves more leaves per second at batch 16 than at batch 1 (Lab 3.1). In the office, an agent sends one leaf about every two seconds. Which batch size should the office app use? 16, for the throughput 4, a compromise 1: requests are rare, so any larger batch adds seconds of waiting 64, the cheapest per leaf",
+      "href": "../slides/day3.html#checkpoint-1"
+    },
+    {
+      "deck": "day3",
+      "id": "lab-3-1",
+      "n": 10,
+      "session": 1,
+      "title": "Batch size against latency",
+      "text": "Lab 3.1 · 25 min Batch size against latency Serve Waraqa at batch sizes from 1 to 64, plot latency against throughput and add the time a request waits for its batch. D3_1_batching.ipynb Time batch sizes from 1 to 64 6 min Throughput per batch size 4 min Plot latency against throughput 5 min Add the wait for the batch to fill 6 min Pick the batch size for the farm office 4 min ✱ Stretch: Simulate dynamic batching with a timeout and find its tail latency",
+      "href": "../slides/day3.html#lab-3-1"
+    },
+    {
+      "deck": "day3",
+      "id": "s2",
+      "n": 11,
+      "session": 2,
+      "title": "Language model inference on a laptop",
+      "text": "Session 2 Language model inference on a laptop Measure time to first token and tokens per second Size a key-value cache from the model's shape Route a question by its data classification 02",
+      "href": "../slides/day3.html#s2"
+    },
+    {
+      "deck": "day3",
+      "id": "meet-hasad",
+      "n": 12,
+      "session": 2,
+      "title": "Hasad: a small open-weight model the course trained, shipped in the repository",
+      "text": "The language model on the laptop Hasad: a small open-weight model the course trained, shipped in the repository A decoder-only transformer: 6 layers, width 128, 4 heads, a context of 512. 1.27 million parameters; one token is one character. Trained on Nama's synthetic advisory facts; it answers the farmer questions of the case. Why so small Every lab runs on a laptop processor and nothing is downloaded. The arithmetic of prefill, decode and the cache is the same at any size.",
+      "href": "../slides/day3.html#meet-hasad"
+    },
+    {
+      "deck": "day3",
+      "id": "prefill-decode",
+      "n": 13,
+      "session": 2,
+      "title": "Reading the prompt is one big pass; writing the answer is one pass per token",
+      "text": "Prefill and decode Reading the prompt is one big pass; writing the answer is one pass per token Prefill all prompt tokens at once: many rows, compute-bound; ends with the first token → Decode one token per pass, reading every weight and the cache: memory-bound at batch 1 Time to first token What the farmer feels before anything appears. Grows with the prompt. Tokens per second How fast the answer streams. Depends on bytes read per token.",
+      "href": "../slides/day3.html#prefill-decode"
+    },
+    {
+      "deck": "day3",
+      "id": "hasad-measured",
+      "n": 14,
+      "session": 2,
+      "title": "Time to first token grows with the context; decoding slows far less",
+      "text": "Measured in Lab 3.2: farm notes before the question Time to first token grows with the context; decoding slows far less Notes (characters) Prompt tokens TTFT ms Decode tokens per s 64 136 13.9 233 256 328 30.3 220 448 432 45.1 163",
+      "href": "../slides/day3.html#hasad-measured"
+    },
+    {
+      "deck": "day3",
+      "id": "kv-cache",
+      "n": 15,
+      "session": 2,
+      "title": "The cache keeps each token's key and value in every layer, so decode never recomputes them",
+      "text": "The key-value cache The cache keeps each token's key and value in every layer, so decode never recomputes them bytes = 2 x layers x (heads x head size) x tokens x bytes per number Hasad: 2 x 6 x 128 x tokens x 4 = 6,144 bytes per token. Tokens Estimate Cache tensors 157 964.6 kB 964.6 kB 349 2,144.3 kB 2,144.3 kB 472 2,900.0 kB 2,900.0 kB",
+      "href": "../slides/day3.html#kv-cache"
+    },
+    {
+      "deck": "day3",
+      "id": "kv-scale",
+      "n": 16,
+      "session": 2,
+      "title": "For a real assistant the cache is no longer small: it grows with every token and every conversation",
+      "text": "The same formula at a real model's shape For a real assistant the cache is no longer small: it grows with every token and every conversation Model shape (16-bit numbers) Tokens Cache per conversation 16 layers, 8 key-value heads of 64 4,096 134 MB 32 layers, 8 key-value heads of 128 8,000 1.05 GB Serving systems page the cache into blocks so that conversations share memory without fragmenting it (PagedAttention).",
+      "href": "../slides/day3.html#kv-scale"
+    },
+    {
+      "deck": "day3",
+      "id": "route-by-classification",
+      "n": 17,
+      "session": 2,
+      "title": "Nama routes farmer questions by data classification before by speed",
+      "text": "Which questions may leave the laptop Nama routes farmer questions by data classification before by speed Nama applies the four levels of the NDMO Data Classification Policy: Top Secret, Secret, Restricted, Public. The policy lists personally identifiable information (names, addresses, phone numbers, identity numbers) among its examples of Restricted data. Reham's rule: Restricted questions are answered on the device only; Public ones may go to a hosted model. Restricted a question with a mobile number or an identity number Public \"How often do I water tomatoes in Qassim in summer?\"",
+      "href": "../slides/day3.html#route-by-classification"
+    },
+    {
+      "deck": "day3",
+      "id": "routing-result",
+      "n": 18,
+      "session": 2,
+      "title": "A router must never leak; keeping a Public question local only costs speed",
+      "text": "Measured in Lab 3.2 on the 2,000 questions A router must never leak; keeping a Public question local only costs speed 307 Restricted questions by the answer key 0 Restricted questions the rule would send out 0 Public questions kept on the device Patterns catch the formats they know. A phone number written in words passes. A router is a control to test, not a guarantee.",
+      "href": "../slides/day3.html#routing-result"
+    },
+    {
+      "deck": "day3",
+      "id": "checkpoint-2",
+      "n": 19,
+      "session": 2,
+      "title": "What grows with the context?",
+      "text": "Checkpoint What grows with the context? Farm agents start pasting a week of farm notes (2,000 characters) before each question. On a model with a context of 4,096 tokens, what changes most? The memory of the model's weights Tokens per second, which fall in proportion to the context The number of tokens in the answer The time to first token and the size of the key-value cache",
+      "href": "../slides/day3.html#checkpoint-2"
+    },
+    {
+      "deck": "day3",
+      "id": "lab-3-2",
+      "n": 20,
+      "session": 2,
+      "title": "Hasad on a laptop",
+      "text": "Lab 3.2 · 25 min Hasad on a laptop Measure Hasad's time to first token and tokens per second at three context lengths, size its key-value cache, and route farmer questions to the device or a hosted model by data classification. D3_2_lm_inference.ipynb Time to first token at three context lengths 6 min Tokens per second while decoding 4 min Size the key-value cache by hand 5 min Check the estimate against the cache tensors 4 min Route questions by classification 6 min ✱ Stretch: Decode without the cache and measure what it costs",
+      "href": "../slides/day3.html#lab-3-2"
+    },
+    {
+      "deck": "day3",
+      "id": "s3",
+      "n": 21,
+      "session": 3,
+      "title": "Quantisation",
+      "text": "Session 3 Quantisation Quantise a classifier to 8 bits with calibration data Compare 8-bit and 4-bit language model files on size, speed and answers Re-measure quality by group after every quantisation 03",
+      "href": "../slides/day3.html#s3"
+    },
+    {
+      "deck": "day3",
+      "id": "quantisation-idea",
+      "n": 22,
+      "session": 3,
+      "title": "Store numbers as small integers with a scale, and map them back when needed",
+      "text": "Quantisation Store numbers as small integers with a scale, and map them back when needed real value = scale x (integer - zero point) 8 bits give 256 levels; 4 bits give 16. The scale is chosen per tensor, per channel or per block of weights. Smaller files : a quarter (8-bit) or an eighth (4-bit) of float32. Faster only where kernels compute on integers or blocks. Lossy : quality is measured again, by group.",
+      "href": "../slides/day3.html#quantisation-idea"
+    },
+    {
+      "deck": "day3",
+      "id": "static-dynamic",
+      "n": 23,
+      "session": 3,
+      "title": "Static quantisation calibrates activation ranges on real data; dynamic computes them on the fly",
+      "text": "For a classifier Static quantisation calibrates activation ranges on real data; dynamic computes them on the fly Weights Activations Needs Static 8-bit, ahead of time 8-bit, ranges from calibration a few hundred representative inputs Dynamic 8-bit, ahead of time ranges computed at run time nothing; less speed on convolutions Quantisation-aware training training sees the rounding and adapts to it a training run",
+      "href": "../slides/day3.html#static-dynamic"
+    },
+    {
+      "deck": "day3",
+      "id": "calibration-reader",
+      "n": 24,
+      "session": 3,
+      "title": "The calibration set must look like the field: all four crops, faint and clear cases",
+      "text": "Lab 3.3, step 1 The calibration set must look like the field: all four crops, faint and clear cases class Reader(CalibrationDataReader): def get_next(self): if self.i >= len(self.x): return None out = {\"image\": U.to_input(self.x[self.i:self.i + 16]).numpy()} self.i += 16 return out quantize_static(\"waraqa_pre.onnx\", \"waraqa_int8.onnx\", Reader(x_cal), quant_format=QuantFormat.QDQ, per_channel=True)",
+      "href": "../slides/day3.html#calibration-reader"
+    },
+    {
+      "deck": "day3",
+      "id": "waraqa-int8",
+      "n": 25,
+      "session": 3,
+      "title": "The 8-bit file is a quarter of the size and slightly faster, with the same accuracy overall",
+      "text": "Measured in Lab 3.3: ONNX Runtime, batch 1, four threads The 8-bit file is a quarter of the size and slightly faster, with the same accuracy overall File MB Median ms p95 ms Accuracy Date palm Waraqa 32-bit 1.16 4.64 9.84 99.1% 92.7% Waraqa 8-bit 0.31 3.98 7.86 99.1% 93.8%",
+      "href": "../slides/day3.html#waraqa-int8"
+    },
+    {
+      "deck": "day3",
+      "id": "hasad-quantised",
+      "n": 26,
+      "session": 3,
+      "title": "Hasad in 8 and 4 bits: smaller files, and quality checked by language variety",
+      "text": "Measured in Lab 3.3 on 200 farmer questions Hasad in 8 and 4 bits: smaller files, and quality checked by language variety File MB tokens/s Right MSA Gulf Mixed 32-bit 5.08 159 100% 100% 100% 100% 8-bit, expanded once 1.45 187 100% 100% 100% 100% 4-bit, expanded once 0.86 221 100% 100% 100% 100% 4-bit, expanded per call 0.86 51 100% 100% 100% 100%",
+      "href": "../slides/day3.html#hasad-quantised"
+    },
+    {
+      "deck": "day3",
+      "id": "quant-speed",
+      "n": 27,
+      "session": 3,
+      "title": "A smaller file is not a faster model: the runtime decides",
+      "text": "Read the table twice A smaller file is not a faster model: the runtime decides Expand once Small download and disk; same memory and speed as float32. Expand per call Small memory; slower in a general framework that expands before multiplying. Compute on blocks Small memory and faster decoding, because fewer bytes are read per token. Needs a runtime built for it.",
+      "href": "../slides/day3.html#quant-speed"
+    },
+    {
+      "deck": "day3",
+      "id": "checkpoint-3",
+      "n": 28,
+      "session": 3,
+      "title": "Is the 8-bit file ready to ship?",
+      "text": "Checkpoint Is the 8-bit file ready to ship? Another team's 8-bit leaf classifier is a quarter of the size, 30% faster, and 0.6 points less accurate overall. Date palm leaves, one in ten of their held-out set, lost 3 points. What do you do next? Put intervals on the overall and per-crop differences, and compare them with the floor per crop Ship it: 0.6 points is within a 1-point floor Reject it: any crop that loses is unacceptable Recalibrate with twice as many leaves and ship that",
+      "href": "../slides/day3.html#checkpoint-3"
+    },
+    {
+      "deck": "day3",
+      "id": "lab-3-3",
+      "n": 29,
+      "session": 3,
+      "title": "Quantise Waraqa and Hasad",
+      "text": "Lab 3.3 · 25 min Quantise Waraqa and Hasad Quantise Waraqa to 8 bits, load the supplied 8-bit and 4-bit files of Hasad, and measure size, speed and quality loss on the fixed question set. D3_3_quantisation.ipynb Calibrate and quantise Waraqa to 8 bits 6 min Size, latency and accuracy of both Waraqa files 5 min Load Hasad's 8-bit and 4-bit files 4 min Size, speed and right answers by language variety 6 min One comparison table 4 min ✱ Stretch: Quantise Waraqa dynamically instead and compare with the static file",
+      "href": "../slides/day3.html#lab-3-3"
+    },
+    {
+      "deck": "day3",
+      "id": "s4",
+      "n": 30,
+      "session": 4,
+      "title": "Pruning or a smaller model",
+      "text": "Session 4 Pruning or a smaller model Prune whole channels by an importance score Recover accuracy with brief fine-tuning Compare a pruned model with a smaller one trained from scratch 04",
+      "href": "../slides/day3.html#s4"
+    },
+    {
+      "deck": "day3",
+      "id": "pruning-kinds",
+      "n": 31,
+      "session": 4,
+      "title": "Zeroing weights saves nothing on dense kernels; removing channels does",
+      "text": "Pruning Zeroing weights saves nothing on dense kernels; removing channels does Unstructured Set the smallest weights to zero anywhere. The matrices keep their shape: a dense kernel multiplies zeros as fast as other numbers. Structured Remove whole filters (channels). Every matrix gets smaller, so every layer does less work.",
+      "href": "../slides/day3.html#pruning-kinds"
+    },
+    {
+      "deck": "day3",
+      "id": "channel-scores",
+      "n": 32,
+      "session": 4,
+      "title": "Score each filter by its L1 norm, keep the top half, copy the weights",
+      "text": "Lab 3.4 Score each filter by its L1 norm, keep the top half, copy the weights scores = U.channel_scores(base) # one tensor per convolution keep = [torch.sort(torch.topk(s, len(s) // 2).indices).values for s in scores] pruned = U.prune_channels(base, keep) # a smaller Waraqa, weights copied U.train_steps(pruned, x_tr, y_tr, steps, lr=5e-4) # a short fine-tune",
+      "href": "../slides/day3.html#channel-scores"
+    },
+    {
+      "deck": "day3",
+      "id": "pruning-results",
+      "n": 33,
+      "session": 4,
+      "title": "Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy",
+      "text": "Measured in Lab 3.4: batch 1, PyTorch, four threads Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy Model Parameters MB Median ms Accuracy Waraqa 288,746 1.17 12.8 99.1% Pruned, no fine-tune 72,954 0.31 7.5 8.4% Pruned, 250 fine-tune steps 72,954 0.31 7.8 95.6% Waraqa-S, trained small 72,954 0.31 8.4 97.9% Pruned, one epoch (supplied) 72,954 0.31 7.7 95.0%",
+      "href": "../slides/day3.html#pruning-results"
+    },
+    {
+      "deck": "day3",
+      "id": "distillation-concept",
+      "n": 34,
+      "session": 4,
+      "title": "Distillation trains the small model to imitate the large one's probabilities",
+      "text": "A third route, as a concept Distillation trains the small model to imitate the large one's probabilities The teacher's output says not only \"rust\" but \"rust, a little like leaf spot\". The student learns from those soft targets as well as the labels. Often beats the same small model trained on labels alone. When to choose which Prune when you own a trained large model and want a cheap result; shrink or distil when you train anyway and want the simplest artefact.",
+      "href": "../slides/day3.html#distillation-concept"
+    },
+    {
+      "deck": "day3",
+      "id": "checkpoint-4",
+      "n": 35,
+      "session": 4,
+      "title": "Why is the masked model not faster?",
+      "text": "Checkpoint Why is the masked model not faster? You set half of Waraqa's convolution weights to zero by magnitude. Accuracy barely changes and latency does not change at all. Why? The pruning did not take effect The dense kernels still multiply every weight, zero or not Batch norm undoes the pruning at inference Only the classifier head determines latency",
+      "href": "../slides/day3.html#checkpoint-4"
+    },
+    {
+      "deck": "day3",
+      "id": "lab-3-4",
+      "n": 36,
+      "session": 4,
+      "title": "Prune or shrink",
+      "text": "Lab 3.4 · 25 min Prune or shrink Prune half of Waraqa's channels, fine-tune briefly and compare with Waraqa-S, the smaller architecture trained from scratch. D3_4_pruning.ipynb Score channels by their L1 norm 4 min Prune half and measure accuracy 5 min Fine-tune briefly 6 min Compare with Waraqa-S 5 min Size, latency and accuracy table 5 min ✱ Stretch: Mask half the weights without removing channels: does it run faster?",
+      "href": "../slides/day3.html#lab-3-4"
+    },
+    {
+      "deck": "day3",
+      "id": "day-3-recap",
+      "n": 37,
+      "session": 4,
+      "title": "Three things to keep from Day 3",
+      "text": "Day 3 recap Three things to keep from Day 3 Batching is a trade Throughput for latency, and only when requests arrive fast enough. Cache arithmetic 2 x layers x width x tokens x bytes, per conversation, on top of the weights. Compression is lossy Smaller is not faster without the right kernels, and quality moves unevenly.",
+      "href": "../slides/day3.html#day-3-recap"
+    },
+    {
+      "deck": "day3",
+      "id": "tomorrow-export",
+      "n": 38,
+      "session": 4,
+      "title": "Export and benchmark",
+      "text": "Tomorrow · Day 4 Export and benchmark Tomorrow you export Waraqa to a portable runtime and prove it matches, write a benchmark someone else can re-run within 10%, put intervals on the quality of every compressed variant by crop, and choose the one that meets Nama's budget. Then you choose your capstone model.",
+      "href": "../slides/day3.html#tomorrow-export"
+    },
+    {
+      "deck": "day4",
+      "id": "title",
+      "n": 1,
+      "session": 0,
+      "title": "Export and benchmark",
+      "text": "SDAIA Academy · Machine Learning Systems on One Machine Export and benchmark Day 4: A portable file, an honest benchmark, quality that survives, a choice AI Engineering Track4 teaching days + capstone day4 sessions · 4 labsAE-206",
+      "href": "../slides/day4.html#title"
+    },
+    {
+      "deck": "day4",
+      "id": "agenda",
+      "n": 2,
+      "session": 0,
+      "title": "Export and benchmark",
+      "text": "Today Export and benchmark Session 1 · Export to a portable runtime Exchange formats, graph optimisation and runtimes for processors, edge devices and small language models Session 2 · A benchmark you can trust Benchmark design: warm-up, repetitions, a fixed input mix, intervals and a re-run Session 3 · Quality must survive Paired comparison of a compressed model with the original, overall and by group Session 4 · Budgets and trade-offs Budgets, ordering changes by measured impact, energy per prediction and the capstone brief",
+      "href": "../slides/day4.html#agenda"
+    },
+    {
+      "deck": "day4",
+      "id": "review-day-3",
+      "n": 3,
+      "session": 0,
+      "title": "Why was the 4-bit file not faster?",
+      "text": "Review of Day 3 Why was the 4-bit file not faster? Hasad's 4-bit file is about a sixth of the 32-bit file's size. Loaded with \"expand once\", it decodes no faster than the 32-bit model once the machine is quiet. Why? The 4-bit file holds the same bytes as the 32-bit one At load the weights became float32 again, so each decode step reads as many bytes as before The key-value cache got larger in 4 bits The tokenizer is slower for quantised models",
+      "href": "../slides/day4.html#review-day-3"
+    },
+    {
+      "deck": "day4",
+      "id": "s1",
+      "n": 4,
+      "session": 1,
+      "title": "Export to a portable runtime",
+      "text": "Session 1 Export to a portable runtime Export a model to an exchange format with a dynamic batch axis Check runtime outputs against the original within a tolerance Compare graph optimisation levels of a runtime 01",
+      "href": "../slides/day4.html#s1"
+    },
+    {
+      "deck": "day4",
+      "id": "why-export",
+      "n": 5,
+      "session": 1,
+      "title": "An exported file carries the graph and the weights, without the training stack",
+      "text": "Exchange formats An exported file carries the graph and the weights, without the training stack Smaller install A runtime instead of a training framework on every farm laptop. Optimised once Fusions and constant folding happen when the session opens, not at every start-up compile. One file, many devices The same file on Windows, Linux and phones, with the runtime for each.",
+      "href": "../slides/day4.html#why-export"
+    },
+    {
+      "deck": "day4",
+      "id": "runtimes-map",
+      "n": 6,
+      "session": 1,
+      "title": "Choose the runtime by the device and the model family",
+      "text": "Runtimes by target Choose the runtime by the device and the model family Target Examples What they add Processors in laptops and servers ONNX Runtime graph optimisation, 8-bit kernels, many execution providers Phones and embedded devices ExecuTorch, LiteRT small binaries, mobile accelerators Small language models on a laptop llama.cpp, Ollama quantised GGUF files, kernels on quantised blocks, a key-value cache",
+      "href": "../slides/day4.html#runtimes-map"
+    },
+    {
+      "deck": "day4",
+      "id": "parity-two-halves",
+      "n": 7,
+      "session": 1,
+      "title": "Parity has two halves: the model in the file and the preprocessing around it",
+      "text": "Lab 4.1: Lina's export \"gives different answers\" Parity has two halves: the model in the file and the preprocessing around it symptom same class on 6 of 64 leaves test 1 give the runtime PyTorch's own input tensor: difference 4.8e-06 cause her runtime divides by 255 and never subtracts the mean 0.5 or divides by 0.25 The robust fix. Export the preprocessing inside the file, so the runtime takes raw pixels and nobody can forget a step.",
+      "href": "../slides/day4.html#parity-two-halves"
+    },
+    {
+      "deck": "day4",
+      "id": "export-dynamic",
+      "n": 8,
+      "session": 1,
+      "title": "Export in evaluation mode, with a dynamic batch axis",
+      "text": "The second fault: a fixed batch Export in evaluation mode, with a dynamic batch axis model.eval() torch.onnx.export(model, (torch.randn(2, 3, 64, 64),), \"waraqa.onnx\", input_names=[\"image\"], output_names=[\"logits\"], opset_version=18, dynamo=False, dynamic_axes={\"image\": {0: \"batch\"}, \"logits\": {0: \"batch\"}}) Lina's file was traced with one leaf: batch 8 fails at run time. The night archive needs batches (Day 3).",
+      "href": "../slides/day4.html#export-dynamic"
+    },
+    {
+      "deck": "day4",
+      "id": "parity-tolerance",
+      "n": 9,
+      "session": 1,
+      "title": "State the tolerance, then prove it on many inputs",
+      "text": "Measured in Lab 4.1 on 500 held-out leaves State the tolerance, then prove it on many inputs 4.8e-06 largest absolute logit difference 1e-4 the tolerance stated before the test 100% leaves with the same class",
+      "href": "../slides/day4.html#parity-tolerance"
+    },
+    {
+      "deck": "day4",
+      "id": "graph-levels",
+      "n": 10,
+      "session": 1,
+      "title": "The runtime's graph optimisations do Day 2's fusion for you",
+      "text": "Measured in Lab 4.1: batch 1, four threads The runtime's graph optimisations do Day 2's fusion for you Setting Median ms p95 ms No graph optimisation 10.5 22.2 Basic 9.5 17.7 Extended 8.2 17.8 All 4.5 8.7 PyTorch eager, for comparison 12.3 30.0",
+      "href": "../slides/day4.html#graph-levels"
+    },
+    {
+      "deck": "day4",
+      "id": "checkpoint-1",
+      "n": 11,
+      "session": 1,
+      "title": "Where do you look first?",
+      "text": "Checkpoint Where do you look first? The exported Waraqa gives different classes from PyTorch on field photos. Feeding both the identical input tensor, their logits agree within 1e-6. Where is the fault? In the exported file: re-export with another opset In the preprocessing: the two pipelines build different tensors from the same photo In floating-point rounding inside the runtime In the model's training, which must be redone",
+      "href": "../slides/day4.html#checkpoint-1"
+    },
+    {
+      "deck": "day4",
+      "id": "lab-4-1",
+      "n": 12,
+      "session": 1,
+      "title": "Export and check parity",
+      "text": "Lab 4.1 · 25 min Export and check parity Export Waraqa to ONNX, find why the supplied export does not match, run it in ONNX Runtime and check that outputs agree within tolerance. D4_1_export_parity.ipynb Run the supplied export 4 min Find why the outputs differ 6 min Export with a dynamic batch axis 4 min Parity within tolerance on 500 leaves 6 min Graph optimisation levels 5 min ✱ Stretch: Count the nodes of the graph before and after optimisation",
+      "href": "../slides/day4.html#lab-4-1"
+    },
+    {
+      "deck": "day4",
+      "id": "s2",
+      "n": 13,
+      "session": 2,
+      "title": "A benchmark you can trust",
+      "text": "Session 2 A benchmark you can trust Write a benchmark that controls warm-up, repetitions and input mix Report percentiles with bootstrap confidence intervals Re-run a benchmark and judge the agreement 02",
+      "href": "../slides/day4.html#s2"
+    },
+    {
+      "deck": "day4",
+      "id": "benchmark-design",
+      "n": 14,
+      "session": 2,
+      "title": "Control what you can, record what you cannot",
+      "text": "Benchmark design Control what you can, record what you cannot Controlled Warm-up calls, number of repetitions, a fixed input mix in a file, batch size, threads, the model file. Recorded Processor, memory, operating system, runtime version, power mode, the load at start. The test of a benchmark. Another person runs it on the same kind of machine and gets a median within 10%.",
+      "href": "../slides/day4.html#benchmark-design"
+    },
+    {
+      "deck": "day4",
+      "id": "input-mix",
+      "n": 15,
+      "session": 2,
+      "title": "Time 40 leaves in the field's crop shares, saved to a file",
+      "text": "A fixed input mix Time 40 leaves in the field's crop shares, saved to a file Tomato 14 Cucumber 12 Citrus 10 Date palm 4 One leaf measures one leaf; real traffic is mixed. The file (mix.npy) makes a re-run see the same inputs. For a language model the mix is prompts of the field's lengths.",
+      "href": "../slides/day4.html#input-mix"
+    },
+    {
+      "deck": "day4",
+      "id": "bootstrap-interval",
+      "n": 16,
+      "session": 2,
+      "title": "A bootstrap interval says how far the median could move on a re-run",
+      "text": "Percentiles with intervals A bootstrap interval says how far the median could move on a re-run rng = np.random.default_rng(206) boots = np.percentile( ms[rng.integers(0, n, (2000, n))], q, axis=1) low, high = np.percentile(boots, [2.5, 97.5]) Resample the timings with replacement, recompute the percentile, 2,000 times. The middle 95% of those values is the interval. The 95th percentile's interval is wider: it rests on fewer calls.",
+      "href": "../slides/day4.html#bootstrap-interval"
+    },
+    {
+      "deck": "day4",
+      "id": "benchmark-report",
+      "n": 17,
+      "session": 2,
+      "title": "The 8-bit file is about twice as fast at the median, and the two intervals do not overlap",
+      "text": "Measured in Lab 4.2: batch 1, 300 calls after 30 warm-up, four threads The 8-bit file is about twice as fast at the median, and the two intervals do not overlap Variant Median ms [95% interval] p95 ms [95% interval] MB Waraqa 32-bit 4.18 [4.08, 4.37] 7.99 [7.60, 9.02] 1.16 Waraqa 8-bit 2.17 [2.06, 2.30] 5.15 [4.25, 5.76] 0.31 Re-run on the same laptop: medians moved +7.5% (32-bit) and +8.6% (8-bit), both within 10%.",
+      "href": "../slides/day4.html#benchmark-report"
+    },
+    {
+      "deck": "day4",
+      "id": "rerun-outside",
+      "n": 18,
+      "session": 2,
+      "title": "Find the difference in conditions before reporting either number",
+      "text": "When a re-run disagrees Find the difference in conditions before reporting either number The machine Load at start, power mode, battery, temperature, another processor. The settings Threads, batch, runtime version, graph optimisation level. The inputs The same mix file? The same model file, byte for byte?",
+      "href": "../slides/day4.html#rerun-outside"
+    },
+    {
+      "deck": "day4",
+      "id": "checkpoint-2",
+      "n": 19,
+      "session": 2,
+      "title": "What do you report?",
+      "text": "Checkpoint What do you report? The 8-bit median is 3% lower than the 32-bit median, and the two 95% intervals overlap by most of their width. What is the honest report? On this machine at batch 1 the two are not distinguishable; the 8-bit file is smaller The 8-bit model is 3% faster The two models are exactly as fast Repeat until the intervals separate, then report the difference",
+      "href": "../slides/day4.html#checkpoint-2"
+    },
+    {
+      "deck": "day4",
+      "id": "lab-4-2",
+      "n": 20,
+      "session": 2,
+      "title": "A benchmark you can trust",
+      "text": "Lab 4.2 · 25 min A benchmark you can trust Write a benchmark of two Waraqa variants with warm-up, repetitions and a fixed input mix, report percentiles with intervals, and re-run it. D4_2_benchmark.ipynb Warm-up and repetitions 5 min A fixed input mix 4 min Percentiles with bootstrap intervals 6 min Both variants in one report 5 min Re-run and compare within 10% 5 min ✱ Stretch: Time the benchmark script from the command line with hyperfine",
+      "href": "../slides/day4.html#lab-4-2"
+    },
+    {
+      "deck": "day4",
+      "id": "s3",
+      "n": 21,
+      "session": 3,
+      "title": "Quality must survive",
+      "text": "Session 3 Quality must survive Compare two models on the same items with a paired test Put an interval on an accuracy difference Accept or reject a variant on the quality floor by crop type 03",
+      "href": "../slides/day4.html#s3"
+    },
+    {
+      "deck": "day4",
+      "id": "quality-floor",
+      "n": 22,
+      "session": 3,
+      "title": "At most 1 point lost overall and 2 points on any crop",
+      "text": "Nama's quality floor At most 1 point lost overall and 2 points on any crop Compression changes errors unevenly: faint lesions, narrow leaflets, the rarest crop. So every variant is checked overall and per crop, and Hasad per language variety (Lab 3.3). Fairness, the first of SDAIA's AI Ethics Principles, shows up here as a per-group check. The farmers behind a group Date palm is one leaf in ten in the data and the main crop of many farms in some regions.",
+      "href": "../slides/day4.html#quality-floor"
+    },
+    {
+      "deck": "day4",
+      "id": "paired-comparison",
+      "n": 23,
+      "session": 3,
+      "title": "Compare two models on the same leaves; only the disagreements carry information",
+      "text": "A paired comparison Compare two models on the same leaves; only the disagreements carry information Variant right Variant wrong Original right both right b : lost Original wrong c : gained both wrong Difference in accuracy = (c - b) / n. McNemar's exact test asks whether b and c could come from a fair coin.",
+      "href": "../slides/day4.html#paired-comparison"
+    },
+    {
+      "deck": "day4",
+      "id": "quality-by-crop",
+      "n": 24,
+      "session": 3,
+      "title": "Only the 8-bit file survives; pruning loses 23 points on date palm, the smallest crop",
+      "text": "Measured in Lab 4.3 on the 2,000 held-out leaves Only the 8-bit file survives; pruning loses 23 points on date palm, the smallest crop Variant Overall [95%] Tomato Cucumber Citrus Date palm Verdict 8-bit +0.0 [-0.1, +0.3] +0.0 [+0.0, +0.0] +0.0 [+0.0, +0.0] -0.2 [-0.6, +0.0] +1.0 [+0.0, +2.6] accept Pruned -4.1 [-5.0, -3.2] -1.4 [-2.4, -0.6] -1.0 [-1.8, -0.3] -4.0 [-5.7, -2.4] -23.3 [-30.1, -17.1] reject Waraqa-S -1.2 [-1.7, -0.6] -0.4 [-1.0, +0.0] -0.2 [-0.5, +0.0] +0.0 [+0.0, +0.0] -9.8 [-15.0, -5.2] reject",
+      "href": "../slides/day4.html#quality-by-crop"
+    },
+    {
+      "deck": "day4",
+      "id": "uncertain-verdict",
+      "n": 25,
+      "session": 3,
+      "title": "An uncertain verdict is a request for evidence, not a pass",
+      "text": "Reading an \"uncertain\" An uncertain verdict is a request for evidence, not a pass About 200 date-palm leaves: one leaf is half a point. The interval says how many more leaves would settle it. Ask Nama for more labelled date-palm leaves before shipping, or keep the larger model for that crop. LO5 evidence A comparison table of size, median and tail latency, and quality loss with an interval.",
+      "href": "../slides/day4.html#uncertain-verdict"
+    },
+    {
+      "deck": "day4",
+      "id": "checkpoint-3",
+      "n": 26,
+      "session": 3,
+      "title": "Accept, reject or uncertain?",
+      "text": "Checkpoint Accept, reject or uncertain? A variant loses 0.4 points overall, interval [-1.3, +0.5], and 1.0 point on date palm, interval [-4.0, +2.0]. The floor is 1 point overall and 2 per crop. What is the verdict? Accept: both losses are within the floor Reject: the intervals go below the floor Uncertain: the estimates pass but both intervals reach below the floor Accept overall; per-crop intervals do not matter",
+      "href": "../slides/day4.html#checkpoint-3"
+    },
+    {
+      "deck": "day4",
+      "id": "lab-4-3",
+      "n": 27,
+      "session": 3,
+      "title": "Quality by crop type",
+      "text": "Lab 4.3 · 25 min Quality by crop type Evaluate each compressed Waraqa on the held-out set against the original with a paired comparison, overall and by crop type. D4_3_quality_by_crop.ipynb Predictions of each variant 4 min Paired differences overall 6 min An interval on each difference 5 min By crop type 6 min Accept or reject each variant 4 min ✱ Stretch: Which leaves flip from right to wrong? Look at twelve of them",
+      "href": "../slides/day4.html#lab-4-3"
+    },
+    {
+      "deck": "day4",
+      "id": "s4",
+      "n": 28,
+      "session": 4,
+      "title": "Budgets and trade-offs",
+      "text": "Session 4 Budgets and trade-offs Choose the variant that meets a latency and memory budget Estimate energy per 1,000 predictions Order optimisation changes by measured impact 04",
+      "href": "../slides/day4.html#s4"
+    },
+    {
+      "deck": "day4",
+      "id": "nama-budget",
+      "n": 29,
+      "session": 4,
+      "title": "Five lines, each measured, each with its margin",
+      "text": "Ghadeer's budget for Waraqa on a farm-office laptop Five lines, each measured, each with its margin Line Limit Latency at most 15 ms at the 95th percentile, batch 1, four threads Model file at most 1 MB Memory at most 150 MB peak for the whole serving process Quality overall within 1 point of the 32-bit model on the held-out set Quality per crop within 2 points of the 32-bit model on every crop",
+      "href": "../slides/day4.html#nama-budget"
+    },
+    {
+      "deck": "day4",
+      "id": "results-table",
+      "n": 30,
+      "session": 4,
+      "title": "Only the 8-bit file meets every line; the faster pruned model fails on date palm",
+      "text": "Supplied to Lab 4.4: every variant on one laptop Only the 8-bit file meets every line; the faster pruned model fails on date palm Variant Runtime MB p95 ms Peak MB Accuracy Worst crop Budget Waraqa 32-bit PyTorch eager 1.17 12.0 227 99.1% none fails: file, memory Waraqa 32-bit ONNX Runtime 1.16 2.4 68 99.1% none fails: file Waraqa 8-bit ONNX Runtime 0.31 1.6 66 99.1% citrus, -0.2 points meets every line Waraqa pruned ONNX Runtime 0.29 1.1 65 95.0% date palm, -23.3 points fails: quality, date palm Waraqa-S ONNX Runtime 0.29 1.2 65 97.9% date palm, -9.8 points fails: quality, date palm",
+      "href": "../slides/day4.html#results-table"
+    },
+    {
+      "deck": "day4",
+      "id": "energy-estimate",
+      "n": 31,
+      "session": 4,
+      "title": "Time per prediction times an assumed power, with the assumption written next to it",
+      "text": "Energy per prediction, as an estimate Time per prediction times an assumed power, with the assumption written next to it Wh per 1,000 = watts x seconds per prediction x 1,000 / 3,600 The course assumes 15 W for a thin laptop's processor under load; use your laptop's specification if you know it. No power meter in the room: this is an estimate, and says so. Proportions between variants are meaningful; absolute numbers are rough. Social and environmental benefit, one of SDAIA's AI Ethics Principles, enters the trade-off as a number.",
+      "href": "../slides/day4.html#energy-estimate"
+    },
+    {
+      "deck": "day4",
+      "id": "order-by-impact",
+      "n": 32,
+      "session": 4,
+      "title": "List changes by measured impact, largest first, each with its quality check",
+      "text": "The optimisation log List changes by measured impact, largest first, each with its quality check # Change Measured effect Quality 1 The change that moved the binding limit most before and after, with intervals paired, per group 2 The next one, measured after change 1 before and after paired, per group … Changes that did nothing stay in the log \"no measurable effect\"",
+      "href": "../slides/day4.html#order-by-impact"
+    },
+    {
+      "deck": "day4",
+      "id": "capstone-brief",
+      "n": 33,
+      "session": 4,
+      "title": "Your optimisation study: a model, a device, a budget, a repository",
+      "text": "Capstone kickoff Your optimisation study: a model, a device, a budget, a repository A model of your choice: Waraqa, Hasad, or your own that runs on a laptop processor or a free notebook GPU. A public repository whose README follows labs/capstone/README_template.md. Baseline profile, changes ordered by measured impact, final latency, memory and quality against your budget, with intervals and the hardware. The defence Eight minutes and four of questions. You re-run your benchmark live, predict the effect of a change the assessor proposes, then measure it.",
+      "href": "../slides/day4.html#capstone-brief"
+    },
+    {
+      "deck": "day4",
+      "id": "checkpoint-4",
+      "n": 34,
+      "session": 4,
+      "title": "Which variant do you recommend?",
+      "text": "Checkpoint Which variant do you recommend? Variant A is the fastest but fails the quality floor on date palm. Variant B meets every line, with a p95 of 14.9 ms against a 15 ms budget, measured on the course laptop. What do you recommend? A, because speed matters most in the field B, with no further condition Neither: keep the 32-bit model until something is faster B, with its margin stated and a re-run on a farm-office laptop before it ships",
+      "href": "../slides/day4.html#checkpoint-4"
+    },
+    {
+      "deck": "day4",
+      "id": "lab-4-4",
+      "n": 35,
+      "session": 4,
+      "title": "Choose under the budget",
+      "text": "Lab 4.4 · 25 min Choose under the budget From a supplied results table, choose the variant that meets the farm-office budget, justify it in one paragraph, and choose the capstone model. D4_4_budget_choice.ipynb Read the supplied results table 4 min Filter by the budget and the quality floor 5 min Energy per 1,000 predictions 5 min The one-paragraph justification 6 min Capstone model and budget 5 min ✱ Stretch: Tighten the latency budget by a third: what is left?",
+      "href": "../slides/day4.html#lab-4-4"
+    },
+    {
+      "deck": "day4",
+      "id": "day-4-recap",
+      "n": 36,
+      "session": 4,
+      "title": "Three things to keep from the course",
+      "text": "Day 4 recap Three things to keep from the course Measure first Profile, find the binding limit, fix the largest cost, measure again. Honest numbers Warm-up, repetitions, fixed inputs, intervals, the machine, a re-run within 10%. Quality must survive Every speed-up is checked, paired and per group, against a floor set in advance.",
+      "href": "../slides/day4.html#day-4-recap"
+    },
+    {
+      "deck": "day4",
+      "id": "tomorrow-capstone",
+      "n": 37,
+      "session": 4,
+      "title": "Capstone presentations",
+      "text": "Tomorrow · Day 5 Capstone presentations Bring your repository, your benchmark ready to re-run on your laptop, and a recorded backup of the run. Eight minutes, then four of questions; the assessor will propose one change for you to predict and measure.",
+      "href": "../slides/day4.html#tomorrow-capstone"
+    },
+    {
+      "deck": "capstone",
+      "id": "title",
+      "n": 1,
+      "session": 0,
+      "title": "Capstone: an optimisation study and its defence",
+      "text": "SDAIA Academy · Machine Learning Systems on One Machine Capstone: an optimisation study and its defence Capstone: Eight minutes of results, a live re-run, four minutes of questions AI Engineering Track4 teaching days + capstone day8 min talk and demo · 4 min Q&AAE-206",
+      "href": "../slides/capstone.html#title"
+    },
+    {
+      "deck": "capstone",
+      "id": "agenda",
+      "n": 2,
+      "session": 0,
+      "title": "How the presentations run",
+      "text": "Capstone How the presentations run Expectations and final prep the rubric, a last rehearsal, then the first presentations Presentations each one timed, with questions after it Review and closing peer feedback, the trainer's review, what next",
+      "href": "../slides/capstone.html#agenda"
+    },
+    {
+      "deck": "capstone",
+      "id": "rubric",
+      "n": 3,
+      "session": 0,
+      "title": "The rubric",
+      "text": "How presentations are scored The rubric Baseline profile 20% Changes ordered by measured impact 25% Quality re-evaluation 20% Benchmark method 20% Reproducibility 15% Show results from at least two measured runs. A claim without a number is a plan, not a result.",
+      "href": "../slides/capstone.html#rubric"
+    },
+    {
+      "deck": "capstone",
+      "id": "format",
+      "n": 4,
+      "session": 0,
+      "title": "8 minutes to present, 4 to answer",
+      "text": "Format 8 minutes to present, 4 to answer 1 · Model, device, budget What you optimised, on which machine, against which limits and quality floor. 2 · The log The baseline profile, then each change by measured impact, with quality checked. 3 · The live re-run Run the final benchmark now, on this laptop, and compare with your README. Peer feedback. After each talk, everyone writes one strength, one question and one suggestion.",
+      "href": "../slides/capstone.html#format"
+    },
+    {
+      "deck": "capstone",
+      "id": "predict-then-measure",
+      "n": 5,
+      "session": 0,
+      "title": "The assessor proposes a change; you predict its effect, then measure it",
+      "text": "The four minutes of questions The assessor proposes a change; you predict its effect, then measure it 1 · Propose \"Use one thread\", \"batch 8\", \"the 8-bit file\", \"a longer prompt\" → 2 · Predict direction and rough size, with the reason: which limit binds → 3 · Measure re-run the benchmark with the change, live → 4 · Explain why the number matched the prediction, or why not",
+      "href": "../slides/capstone.html#predict-then-measure"
+    },
+    {
+      "deck": "capstone",
+      "id": "common-gaps",
+      "n": 6,
+      "session": 0,
+      "title": "Five gaps to close before you present",
+      "text": "What reviewers flag most often Five gaps to close before you present A speed-up without the machine, threads and batch it was measured with. A median from one run, without repetitions or an interval. Quality checked overall but not per group. Changes listed in the order they were tried, not by measured impact. A README whose commands do not reproduce the table from a fresh clone.",
+      "href": "../slides/capstone.html#common-gaps"
+    },
+    {
+      "deck": "capstone",
+      "id": "running-order",
+      "n": 7,
+      "session": 0,
+      "title": "Who presents when",
+      "text": "Running order Who presents when # Presenter Project 1 2 3 4 5 6 7 8",
+      "href": "../slides/capstone.html#running-order"
+    },
+    {
+      "deck": "capstone",
+      "id": "final-prep",
+      "n": 8,
+      "session": 0,
+      "title": "Final prep · 20 minutes",
+      "text": "Before the first presentation Final prep · 20 minutes Rehearse once, record a backup, try the demo on this screen.",
+      "href": "../slides/capstone.html#final-prep"
+    },
+    {
+      "deck": "capstone",
+      "id": "now-presenting",
+      "n": 9,
+      "session": 0,
+      "title": "Talk and demo",
+      "text": "Now presenting Talk and demo Questions",
+      "href": "../slides/capstone.html#now-presenting"
+    },
+    {
+      "deck": "capstone",
+      "id": "review",
+      "n": 10,
+      "session": 0,
+      "title": "What the presentations showed",
+      "text": "Trainer review What the presentations showed Strongest patterns What several projects got right. Common gaps What most projects would fix next. One surprise Something nobody expected.",
+      "href": "../slides/capstone.html#review"
+    },
+    {
+      "deck": "capstone",
+      "id": "what-next",
+      "n": 11,
+      "session": 0,
+      "title": "Keep going",
+      "text": "After the course Keep going Your project stays yours: keep it reproducible and add the next improvement you named today The follow-up task: re-run your benchmark on a second device and write a short comparison note: what moved, and why Next Academy courses: AE-205 for serving and monitoring a model under load; AE-401 for inference performance and cost at scale; AE-310 for fine-tuning, distillation and small models in practice",
+      "href": "../slides/capstone.html#what-next"
+    },
+    {
+      "deck": "capstone",
+      "id": "thanks",
+      "n": 12,
+      "session": 0,
+      "title": "Thank you",
+      "text": "SDAIA Academy Thank you Machine Learning Systems on One Machine",
+      "href": "../slides/capstone.html#thanks"
+    }
+  ]
+}
