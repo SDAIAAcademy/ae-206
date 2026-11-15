@@ -203,7 +203,7 @@ U.save_reference("d3_2_routing", {"leaks": leaks, "kept_public": kept, "restrict
 # %% [markdown]
 # ## Check yourself
 #
-# 1. TTFT grew with the context and decode speed hardly moved. Why do the two behave
+# 1. TTFT grew with the context and decode speed fell far less. Why do the two behave
 #    differently?
 # 2. A model has 32 layers, 8 key-value heads of 128 numbers, 16-bit numbers. How large is
 #    the cache for 8,000 tokens?

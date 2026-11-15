@@ -47,10 +47,11 @@ x_tr, y_tr, _ = U.leaves("train", U.pick(8000, 2000))
 x_test, y_test, _ = U.leaves("test", U.pick(2000, 600))
 OUT = U.ARTIFACTS / "d3_4"
 OUT.mkdir(parents=True, exist_ok=True)
-rows = []
+rows, models = [], {}
 
 
 def row(name, m):
+    models[name] = m
     leaf = U.to_input(x_test[:1])
     with torch.no_grad():
         s = U.summarise(U.time_ms(lambda: m(leaf), n=U.pick(100, 40), warmup=5))
@@ -147,8 +148,22 @@ row("pruned + 1 epoch (supplied)", U.load_model("waraqa_pruned"))
 
 # %% [markdown]
 # ## 5 · Size, latency and accuracy table
+#
+# The timings above were taken at different moments: some before the fine-tune, some right
+# after it, when the processor was still hot. Lab 1.2's rule says to compare under the same
+# conditions, so time every model again here, in turn, several rounds, and pool the calls.
 
 # %%
+leaf = U.to_input(x_test[:1])
+pooled = {r["model"]: [] for r in rows}
+with torch.no_grad():
+    for _ in range(U.pick(6, 3)):
+        for r in rows:
+            m = models[r["model"]]
+            pooled[r["model"]] += U.time_ms(lambda: m(leaf), n=U.pick(40, 15), warmup=3)
+for r in rows:
+    s = U.summarise(pooled[r["model"]])
+    r["median_ms"], r["p95_ms"] = s["median"], s["p95"]
 print(f"{'model':28s} {'params':>8s} {'MB':>5s} {'median ms':>9s} {'p95 ms':>7s} {'accuracy':>8s}")
 for r in rows:
     print(f"{r['model']:28s} {r['params']:8,d} {r['file_mb']:5.2f} {r['median_ms']:9.2f} {r['p95_ms']:7.2f} {r['accuracy']:8.3f}")

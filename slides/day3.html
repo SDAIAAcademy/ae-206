@@ -346,14 +346,14 @@ U.train_steps(pruned, x_tr, y_tr, steps, lr=5e-4)   # a short fine-tune</code></
   <div class="kicker">Measured in Lab 3.4: batch 1, PyTorch, four threads</div>
   <h2>Pruning breaks the model until it is fine-tuned; Waraqa-S, trained small, keeps the most accuracy</h2>
   <table class="t small">
-    <tr><th>Model</th><th class="num">Parameters</th><th class="num">MB</th><th class="num">Median ms, two runs</th><th class="num">Accuracy</th></tr>
-    <tr><td>Waraqa</td><td class="num">288,746</td><td class="num">1.17</td><td class="num">28.2 / 19.7</td><td class="num">99.1%</td></tr>
-    <tr><td>Pruned, no fine-tune</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">9.7 / 14.2</td><td class="num">8.4%</td></tr>
-    <tr><td>Pruned, 250 fine-tune steps</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">5.1 / 31.5</td><td class="num">95.6%</td></tr>
-    <tr class="hl"><td>Waraqa-S, trained small</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">5.0 / 26.5</td><td class="num">97.9%</td></tr>
-    <tr><td>Pruned, one epoch (supplied)</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">4.0 / 28.9</td><td class="num">95.0%</td></tr>
+    <tr><th>Model</th><th class="num">Parameters</th><th class="num">MB</th><th class="num">Median ms</th><th class="num">Accuracy</th></tr>
+    <tr><td>Waraqa</td><td class="num">288,746</td><td class="num">1.17</td><td class="num">12.8</td><td class="num">99.1%</td></tr>
+    <tr><td>Pruned, no fine-tune</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.5</td><td class="num">8.4%</td></tr>
+    <tr><td>Pruned, 250 fine-tune steps</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.8</td><td class="num">95.6%</td></tr>
+    <tr class="hl"><td>Waraqa-S, trained small</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">8.4</td><td class="num">97.9%</td></tr>
+    <tr><td>Pruned, one epoch (supplied)</td><td class="num">72,954</td><td class="num">0.31</td><td class="num">7.7</td><td class="num">95.0%</td></tr>
   </table>
-  <aside class="notes"><p>Numbers from the course's run of Lab 3.4 in full mode. Waraqa-S was trained from scratch for the same six epochs as Waraqa; the supplied pruned model was fine-tuned for one epoch.</p><p>The two timing columns are the course's two full runs on a shared, busy laptop: they disagree by up to six times, and in the second run the small models were slower than Waraqa. Read size and accuracy from this table; read speed from Day 4's results table, measured with ONNX Runtime on a quiet machine (pruned 0.74 ms, Waraqa-S 1.00 ms, Waraqa 1.82 ms at the median). This is Lab 1.2's rule in action.</p></aside>
+  <aside class="notes"><p>Numbers from the course's run of Lab 3.4 in full mode. Waraqa-S was trained from scratch for the same six epochs as Waraqa; the supplied pruned model was fine-tuned for one epoch.</p><p>The timings are from the lab's last step, which times all five models in turn, six rounds of 40 calls each, so that every model meets the same machine state; timed one after the other, with a fine-tune in between, the same models disagreed by up to six times between two runs. The laptop was shared and busy, so the absolute values are about twice Lab 1.2's quiet 5.7 ms: read the ratio, about 1.6 times faster with half the channels, and read Day 4's results table for speed in ONNX Runtime on a quiet machine (pruned 0.74 ms, Waraqa-S 1.00 ms, Waraqa 1.82 ms at the median). The four small models are the same architecture, so the differences among them are noise.</p></aside>
 </section>
 
 <section class="slide" data-label="Distillation" id="distillation-concept" data-lo="LO5">
