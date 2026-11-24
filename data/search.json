@@ -2,9 +2,9 @@
   "v": 1,
   "engine": "1.0.0",
   "build": {
-    "at": "2026-11-15T11:52:37Z",
-    "version": "2027.1.0",
-    "commit": "71acc15"
+    "at": "2026-11-24T16:34:50Z",
+    "version": "2027.2.0",
+    "commit": "6b74c48"
   },
   "lang": "en",
   "dir": "ltr",
@@ -420,7 +420,7 @@
       "n": 2,
       "session": 0,
       "title": "Memory and training efficiency",
-      "text": "Today Memory and training efficiency Session 1 · Where memory goes Weights, gradients, optimiser state and activations: an estimate you can check Session 2 · Mixed precision Number formats, autocast and what the hardware actually accelerates Session 3 · Accumulation and checkpointing Gradient accumulation and activation checkpointing: a large batch in fixed memory Session 4 · Compilation and fusion Graphs, operator fusion and compilation: the first-call cost and the steady state",
+      "text": "Today Memory and training efficiency Session 1 · Where memory goes Weights, gradients, optimiser state and activations: an estimate you can check Session 2 · Mixed precision Number formats, autocast, float16 underflow and loss scaling, and what the hardware actually accelerates Session 3 · Accumulation and checkpointing Gradient accumulation and activation checkpointing: a large batch in fixed memory Session 4 · Compilation and fusion Graphs, operator fusion and compilation: the first-call cost and the steady state",
       "href": "../slides/day2.html#agenda"
     },
     {
@@ -533,17 +533,35 @@
     },
     {
       "deck": "day2",
-      "id": "hardware-support",
+      "id": "fp16-underflow-signs",
       "n": 15,
       "session": 2,
+      "title": "float16 lost 2.9% of Hasad's gradients without a single error",
+      "text": "Measured: Hasad, one backward pass on 32 questions it already answers well float16 lost 2.9% of Hasad's gradients without a single error Layer group Entries Zero in float16 only Embeddings 26,496 10.67% Feed-forward 790,272 3.20% Attention 396,288 1.81% Norms 3,328 0.09% All 1,216,384 2.90% Loss 0.000415 in both runs, no infinity or NaN: not overflow. The same batch in float32 gives every one of these entries a nonzero gradient: not the learning rate. Gradients that are zero only in float16 fell below its smallest number, about 6e-8: underflow.",
+      "href": "../slides/day2.html#fp16-underflow-signs"
+    },
+    {
+      "deck": "day2",
+      "id": "loss-scaling",
+      "n": 16,
+      "session": 2,
+      "title": "A scale of 65,536 brings the lost gradients back; too large a scale overflows",
+      "text": "The fix: scale the loss, unscale the gradients A scale of 65,536 brings the lost gradients back; too large a scale overflows Loss scale Lost Inf or NaN Error vs float32 1 2.90% 0 12.23% 256 0.01% 0 0.34% 65,536 0.00% 0 0.30% 16.8 million 0.00% 0 0.31% 4.3 billion 0.00% 1.2 million unusable scaler = torch.amp.GradScaler(\"cuda\") with torch.autocast(\"cuda\", dtype=torch.float16): loss = loss_fn(model(x), y) scaler.scale(loss).backward() # loss x scale scaler.unscale_(opt) # before clipping clip_grad_norm_(model.parameters(), 1.0) scaler.step(opt) # skipped on inf or NaN scaler.update() # adjust the scale PyTorch's scaler starts at 65,536, halves the scale and skips the step when it finds inf or NaN, and doubles it after 2,000 clean steps.",
+      "href": "../slides/day2.html#loss-scaling"
+    },
+    {
+      "deck": "day2",
+      "id": "hardware-support",
+      "n": 17,
+      "session": 2,
       "title": "Reduced precision is faster only where the hardware computes in it",
-      "text": "Ask the hardware first Reduced precision is faster only where the hardware computes in it PyTorch reports the vector extensions it uses: torch.backends.cpu.get_cpu_capability(). The course laptop reports AVX2: no native bfloat16 arithmetic. Without it, bfloat16 numbers are converted to float32 to compute and back: extra work. Predict before you run Write down faster, same or slower. Then measure.",
+      "text": "Ask the hardware first Reduced precision is faster only where the hardware computes in it torch.backends.cpu.get_cpu_capability() names the vector extensions in use. The course laptop reports AVX2: no native bfloat16 arithmetic, so every bfloat16 number is converted to float32 and back. Predict before you run Write down faster, same or slower. Then measure.",
       "href": "../slides/day2.html#hardware-support"
     },
     {
       "deck": "day2",
       "id": "precision-result",
-      "n": 16,
+      "n": 18,
       "session": 2,
       "title": "On a processor without native bfloat16, autocast made each step 24 times slower, at the same accuracy",
       "text": "Measured in Lab 2.2: 12 steps of 64 leaves from the warm-start checkpoint On a processor without native bfloat16, autocast made each step 24 times slower, at the same accuracy Setting ms per step Leaves per s Peak MB Val accuracy float32 929 69 324 0.777 bfloat16 autocast 22,252 3 280 0.776 The blog post's \"twice as fast\" may hold on its hardware. On this one, the measurement decides.",
@@ -552,7 +570,7 @@
     {
       "deck": "day2",
       "id": "claims-and-hardware",
-      "n": 17,
+      "n": 19,
       "session": 2,
       "title": "A speed-up without its hardware, settings and quality is not a result",
       "text": "Reading a speed-up claim A speed-up without its hardware, settings and quality is not a result Hardware which processor, which extensions → Settings batch, threads, what was measured → Both sides the same steps, the same data → Quality accuracy after, on the same set",
@@ -561,7 +579,7 @@
     {
       "deck": "day2",
       "id": "checkpoint-2",
-      "n": 18,
+      "n": 20,
       "session": 2,
       "title": "Why did bfloat16 not help here?",
       "text": "Checkpoint Why did bfloat16 not help here? On a laptop whose processor reports AVX2 only, bfloat16 autocast made Waraqa's training step slower with the same accuracy. What is the best explanation? The model is too small to benefit from any optimisation bfloat16 lost precision, so the step had to do more work The processor has no native bfloat16 arithmetic, so each operation pays for conversions The optimiser now runs in bfloat16 and needs more steps",
@@ -570,7 +588,7 @@
     {
       "deck": "day2",
       "id": "lab-2-2",
-      "n": 19,
+      "n": 21,
       "session": 2,
       "title": "Reduced precision",
       "text": "Lab 2.2 · 25 min Reduced precision Train Waraqa from a warm-start checkpoint with and without bfloat16 autocast and compare time per step and validation accuracy. D2_2_mixed_precision.ipynb What this processor supports 3 min Train in 32-bit for a fixed number of steps 6 min Train the same steps with bfloat16 autocast 6 min Validation accuracy of both 5 min The results row for each setting 5 min ✱ Stretch: On a Colab GPU, float16 autocast with a gradient scaler",
@@ -579,7 +597,7 @@
     {
       "deck": "day2",
       "id": "s3",
-      "n": 20,
+      "n": 22,
       "session": 3,
       "title": "Accumulation and checkpointing",
       "text": "Session 3 Accumulation and checkpointing Reach an effective batch with gradient accumulation Trade recomputation for memory with activation checkpointing Verify that a memory saving did not change the gradient 03",
@@ -588,7 +606,7 @@
     {
       "deck": "day2",
       "id": "effective-batch",
-      "n": 21,
+      "n": 23,
       "session": 3,
       "title": "Lina's recipe needs an effective batch of 256; the budget allows 400 MB",
       "text": "The problem Lina's recipe needs an effective batch of 256; the budget allows 400 MB 1,174 MB measured peak of one batch of 256 (Lab 2.3) Mutaib's rule: monthly retraining on a farm-office laptop may use at most 400 MB above the process at rest. The learning rate and schedule were tuned for 256: a smaller batch changes training. Two ways to keep 256: accumulate, or recompute.",
@@ -597,7 +615,7 @@
     {
       "deck": "day2",
       "id": "gradient-accumulation",
-      "n": 22,
+      "n": 24,
       "session": 3,
       "title": "Four micro-batches of 64, one optimiser step",
       "text": "Gradient accumulation Four micro-batches of 64, one optimiser step for xm, ym in zip(x.chunk(4), y.chunk(4)): loss = F.cross_entropy(model(xm), ym) / 4 loss.backward() # gradients add up in .grad opt.step() opt.zero_grad() Divide each loss by the number of micro-batches: the sum is the mean over 256. Activations of one micro-batch at a time: about a quarter of the memory. Costs time: four smaller calls do less work in parallel.",
@@ -606,7 +624,7 @@
     {
       "deck": "day2",
       "id": "same-gradient",
-      "n": 23,
+      "n": 25,
       "session": 3,
       "title": "Accumulation equals a large batch only for layers that treat each example alone",
       "text": "Checked in Lab 2.3 Accumulation equals a large batch only for layers that treat each example alone Batch norm mode Largest relative gradient difference Evaluation (stored statistics) 3.8e-05 Training (statistics per batch) 1.2 With batch norm, each micro-batch is normalised by its own statistics. It usually trains fine; it is not the same computation.",
@@ -615,7 +633,7 @@
     {
       "deck": "day2",
       "id": "activation-checkpointing",
-      "n": 24,
+      "n": 26,
       "session": 3,
       "title": "Keep a few activations, recompute the rest during the backward pass",
       "text": "Activation checkpointing Keep a few activations, recompute the rest during the backward pass from torch.utils.checkpoint import checkpoint_sequential feats = checkpoint_sequential(model.features, 4, x, use_reentrant=False) logits = model.head(feats.mean(dim=(2, 3))) Only the boundaries of 4 segments are kept; each segment's inside is recomputed when its gradient is needed. Trades about one extra forward pass for memory. The idea is from Chen et al., 2016: memory that grows more slowly than depth.",
@@ -624,7 +642,7 @@
     {
       "deck": "day2",
       "id": "fit-table",
-      "n": 25,
+      "n": 27,
       "session": 3,
       "title": "Accumulation fits; checkpointing cuts memory, not enough here",
       "text": "Measured in Lab 2.3, budget 400 MB Accumulation fits; checkpointing cuts memory, not enough here Method Peak MB Fits s per step Time One batch of 256 1,174 no 3.63 1.00x Accumulation, 4 x 64 319 yes 3.67 1.01x Checkpointing, 4 segments, 256 807 no 4.62 1.27x",
@@ -633,7 +651,7 @@
     {
       "deck": "day2",
       "id": "checkpoint-3",
-      "n": 26,
+      "n": 28,
       "session": 3,
       "title": "What does activation checkpointing reduce?",
       "text": "Checkpoint What does activation checkpointing reduce? A language model of 2 B parameters does not fit for training on a 24 GB GPU even at batch 1. Will activation checkpointing make it fit? Unlikely: weights, gradients and AdamW state already need about 32 GB, which checkpointing does not touch Yes: checkpointing reduces all training memory Not alone, but gradient accumulation will Yes, if the checkpoints are written to disk",
@@ -642,7 +660,7 @@
     {
       "deck": "day2",
       "id": "lab-2-3",
-      "n": 27,
+      "n": 29,
       "session": 3,
       "title": "A large batch in fixed memory",
       "text": "Lab 2.3 · 25 min A large batch in fixed memory Fit an effective batch of 256 into Nama's training memory budget with gradient accumulation and activation checkpointing, and measure what each costs in time. D2_3_accumulate_checkpoint.ipynb Batch 256 against the budget 4 min Accumulation: four micro-batches of 64 6 min Check: the same gradient as one large batch 5 min Activation checkpointing 6 min Memory and time per method 4 min ✱ Stretch: Checkpoint two segments against four and find the cheapest that fits",
@@ -651,7 +669,7 @@
     {
       "deck": "day2",
       "id": "s4",
-      "n": 28,
+      "n": 30,
       "session": 4,
       "title": "Compilation and fusion",
       "text": "Session 4 Compilation and fusion Fold a batch norm into the convolution before it Measure a compiler's first-call cost against its steady-state gain Complete a results table of time, memory and accuracy per setting 04",
@@ -660,7 +678,7 @@
     {
       "deck": "day2",
       "id": "why-fusion",
-      "n": 29,
+      "n": 31,
       "session": 4,
       "title": "Separate operations read and write the whole activation each time",
       "text": "Operator fusion Separate operations read and write the whole activation each time Convolution writes z → Batch norm reads z, writes y → ReLU reads y, writes y Fused. One kernel computes the convolution, the affine map and the ReLU while the data is still in cache: one write instead of three.",
@@ -669,7 +687,7 @@
     {
       "deck": "day2",
       "id": "fold-batch-norm",
-      "n": 30,
+      "n": 32,
       "session": 4,
       "title": "At inference, batch norm folds into the convolution's weights",
       "text": "One fusion by hand At inference, batch norm folds into the convolution's weights s = bn.weight / torch.sqrt(bn.running_var + bn.eps) W_new = conv.weight * s.reshape(-1, 1, 1, 1) b_new = bn.bias - bn.running_mean * s At inference batch norm is a fixed affine map per channel; a convolution is linear: the two combine. Not during training: the statistics change every batch. Outputs agree to rounding: largest logit difference 5.7e-06 in Lab 2.4.",
@@ -678,7 +696,7 @@
     {
       "deck": "day2",
       "id": "compilers",
-      "n": 31,
+      "n": 33,
       "session": 4,
       "title": "A compiler captures the graph, fuses operations and generates code once",
       "text": "Compilation A compiler captures the graph, fuses operations and generates code once torch.compile(model): capture on the first call, then reuse the generated code. Its default backend generates C++ for processors: it needs a C++ compiler. Colab, Linux and macOS usually have one; the course's Windows laptop did not. Two numbers, always The first-call cost (capture and code generation) and the steady-state speed per call.",
@@ -687,7 +705,7 @@
     {
       "deck": "day2",
       "id": "compile-result",
-      "n": 32,
+      "n": 34,
       "session": 4,
       "title": "Folding batch norm bought 6%; compiling bought nothing here, after a 13-second first call",
       "text": "Measured in Lab 2.4: inference, batch 32 Folding batch norm bought 6%; compiling bought nothing here, after a 13-second first call Setting ms per batch Leaves per s Accuracy Eager 130.3 246 99.1% Batch norm folded 122.3 262 99.1% Folded and compiled (aot_eager) 135.0 237 99.1% First call with compilation: 13.0 s (backend aot_eager).",
@@ -696,7 +714,7 @@
     {
       "deck": "day2",
       "id": "lo4-results",
-      "n": 33,
+      "n": 35,
       "session": 4,
       "title": "One table: time, throughput, peak memory and accuracy per setting",
       "text": "The day's evidence One table: time, throughput, peak memory and accuracy per setting Training rows: float32, bfloat16 autocast, accumulation, checkpointing. Inference rows: eager, batch norm folded, compiled. Each row names its machine, batch and threads. LO4 evidence A results table with time per step, throughput, peak memory and accuracy for each setting.",
@@ -705,7 +723,7 @@
     {
       "deck": "day2",
       "id": "checkpoint-4",
-      "n": 34,
+      "n": 36,
       "session": 4,
       "title": "Is compilation worth it here?",
       "text": "Checkpoint Is compilation worth it here? Compiling Waraqa costs 20 s on the first call and saves 2 ms per batch. The field app starts, classifies about 50 leaves, and closes. Should it compile at start-up? Yes: 2 ms per batch is a 20% gain No: 50 leaves save well under a second, and the agent waits 20 s at every start No: compilation lowers accuracy Yes: the gain grows the longer the laptop runs",
@@ -714,7 +732,7 @@
     {
       "deck": "day2",
       "id": "lab-2-4",
-      "n": 35,
+      "n": 37,
       "session": 4,
       "title": "Compile and fuse",
       "text": "Lab 2.4 · 25 min Compile and fuse Fold batch norm into Waraqa's convolutions by hand, compile the model where a compiler is available, and measure the first-call cost and the steady-state speed-up. D2_4_compile_fusion.ipynb Eager baseline 4 min Fold batch norm into the convolution 7 min Check that the outputs match 4 min Compile: first call and steady state 6 min Complete the results table 4 min ✱ Stretch: In Colab, compare the default compile mode with max-autotune",
@@ -723,7 +741,7 @@
     {
       "deck": "day2",
       "id": "day-2-recap",
-      "n": 36,
+      "n": 38,
       "session": 4,
       "title": "Three things to keep from Day 2",
       "text": "Day 2 recap Three things to keep from Day 2 Estimate, then measure 16 bytes per parameter plus activations that scale with the batch; name every gap. Hardware decides Reduced precision and compilers help where the machine supports them. Measure on yours. Memory for time Accumulation and checkpointing fit a batch into a budget and pay in time.",
@@ -732,7 +750,7 @@
     {
       "deck": "day2",
       "id": "tomorrow-inference",
-      "n": 37,
+      "n": 39,
       "session": 4,
       "title": "Inference and compression",
       "text": "Tomorrow · Day 3 Inference and compression Tomorrow you serve Waraqa at batch sizes from 1 to 64, run Hasad on the laptop and size its key-value cache, decide which farmer questions may leave the device, then quantise and prune both models and measure what each change costs in quality.",

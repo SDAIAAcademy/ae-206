@@ -1,7 +1,7 @@
 ---
 course: "Machine Learning Systems on One Machine"
 code: "AE-206"
-version: "2027.1.0"
+version: "2027.2.0"
 language: "en"
 view: "trainee"
 source: "https://sdaiaacademy.github.io/ae-206/index.html"
@@ -191,6 +191,7 @@ An optimisation study on a model of the participant's choice, submitted as a pub
 
 - [PyTorch 2.15: datasets and data loaders (torch.utils.data)](https://docs.pytorch.org/docs/2.15/data.html)
 - [PyTorch 2.15: automatic mixed precision (torch.amp)](https://docs.pytorch.org/docs/2.15/amp.html)
+- [PyTorch 2.15: automatic mixed precision examples (gradient scaling)](https://docs.pytorch.org/docs/2.15/notes/amp_examples.html)
 - [PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)](https://docs.pytorch.org/docs/2.15/checkpoint.html)
 - [PyTorch 2.15: torch.compile](https://docs.pytorch.org/docs/2.15/generated/torch.compile.html)
 - [PyTorch 2.15: torch.backends](https://docs.pytorch.org/docs/2.15/backends.html)
@@ -219,4 +220,4 @@ An optimisation study on a model of the participant's choice, submitted as a pub
 
 SDAIA Academy · AI Engineering Track · Machine Learning Systems on One Machine
 
-Course version 2027.1.0 · engine 1.0.0 · built 2026-11-15 · commit 71acc15
+Course version 2027.2.0 · engine 1.0.0 · built 2026-11-24 · commit 6b74c48

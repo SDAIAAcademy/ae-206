@@ -2,9 +2,9 @@
   "v": 1,
   "engine": "1.0.0",
   "build": {
-    "at": "2026-11-15T11:52:37Z",
-    "version": "2027.1.0",
-    "commit": "71acc15"
+    "at": "2026-11-24T16:34:50Z",
+    "version": "2027.2.0",
+    "commit": "6b74c48"
   },
   "lang": "en",
   "dir": "ltr",
@@ -15,7 +15,7 @@
   "course": {
     "id": "ae-206",
     "code": "AE-206",
-    "version": "2027.1.0",
+    "version": "2027.2.0",
     "title": "Machine Learning Systems on One Machine",
     "tagline": "Find where time and memory go on one machine, fix the largest cost first, and prove each speed-up kept its quality",
     "description": "Participants find out where time and memory go between raw data and a served prediction, and fix the largest cost first. For a fictional agritech company they profile a data pipeline and a training step, estimate memory from weights, activations, optimiser state and the key-value cache, apply mixed precision, batching, quantisation and pruning, export a model to a portable runtime, and benchmark latency, throughput and quality with repeated runs and intervals. Labs run on a laptop CPU, with an optional free notebook GPU, and every speed-up must be measured and checked for loss of quality.",
@@ -356,7 +356,7 @@
             "n": 2,
             "label": "Session 2",
             "title": "Mixed precision",
-            "summary": "Number formats, autocast and what the hardware actually accelerates",
+            "summary": "Number formats, autocast, float16 underflow and loss scaling, and what the hardware actually accelerates",
             "outcomes": [
               "Choose between float32, float16 and bfloat16 for a step",
               "Train with autocast and compare time and accuracy",
@@ -1040,6 +1040,10 @@
           {
             "title": "PyTorch 2.15: automatic mixed precision (torch.amp)",
             "url": "https://docs.pytorch.org/docs/2.15/amp.html"
+          },
+          {
+            "title": "PyTorch 2.15: automatic mixed precision examples (gradient scaling)",
+            "url": "https://docs.pytorch.org/docs/2.15/notes/amp_examples.html"
           },
           {
             "title": "PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)",

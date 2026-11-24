@@ -1,7 +1,7 @@
 ---
 course: "Machine Learning Systems on One Machine"
 code: "AE-206"
-version: "2027.1.0"
+version: "2027.2.0"
 scope: "course"
 language: "en"
 view: "trainee"
@@ -546,7 +546,7 @@ AI Engineering Track · 4 teaching days + capstone day · 4 sessions · 4 labs �
 *Today*
 
 - **Session 1 · Where memory goes**: Weights, gradients, optimiser state and activations: an estimate you can check
-- **Session 2 · Mixed precision**: Number formats, autocast and what the hardware actually accelerates
+- **Session 2 · Mixed precision**: Number formats, autocast, float16 underflow and loss scaling, and what the hardware actually accelerates
 - **Session 3 · Accumulation and checkpointing**: Gradient accumulation and activation checkpointing: a large batch in fixed memory
 - **Session 4 · Compilation and fusion**: Graphs, operator fusion and compilation: the first-call cost and the steady state
 
@@ -692,13 +692,54 @@ opt.step()                           # float32 master weights
 - On a CPU, autocast defaults to bfloat16; on a GPU to float16.
 - float16 needs a **gradient scaler** to keep small gradients from underflowing.
 
+#### [day2#fp16-underflow-signs] float16 lost 2.9% of Hasad's gradients without a single error
+
+*Measured: Hasad, one backward pass on 32 questions it already answers well*
+
+| Layer group | Entries | Zero in float16 only |
+| --- | --- | --- |
+| Embeddings | 26,496 | 10.67% |
+| Feed-forward | 790,272 | 3.20% |
+| Attention | 396,288 | 1.81% |
+| Norms | 3,328 | 0.09% |
+| **All** | 1,216,384 | **2.90%** |
+
+- Loss 0.000415 in both runs, no infinity or NaN: **not overflow**.
+- The same batch in float32 gives every one of these entries a nonzero gradient: **not the learning rate**.
+- Gradients that are zero only in float16 fell below its smallest number, about 6e-8: **underflow**.
+
+#### [day2#loss-scaling] A scale of 65,536 brings the lost gradients back; too large a scale overflows
+
+*The fix: scale the loss, unscale the gradients*
+
+| Loss scale | Lost | Inf or NaN | Error vs float32 |
+| --- | --- | --- | --- |
+| 1 | 2.90% | 0 | 12.23% |
+| 256 | 0.01% | 0 | 0.34% |
+| 65,536 | 0.00% | 0 | 0.30% |
+| 16.8 million | 0.00% | 0 | 0.31% |
+| 4.3 billion | 0.00% | 1.2 million | unusable |
+
+```python
+# file: float16 with a scaler
+scaler = torch.amp.GradScaler("cuda")
+with torch.autocast("cuda", dtype=torch.float16):
+    loss = loss_fn(model(x), y)
+scaler.scale(loss).backward()   # loss x scale
+scaler.unscale_(opt)            # before clipping
+clip_grad_norm_(model.parameters(), 1.0)
+scaler.step(opt)                # skipped on inf or NaN
+scaler.update()                 # adjust the scale
+```
+
+PyTorch's scaler starts at 65,536, halves the scale and skips the step when it finds inf or NaN, and doubles it after 2,000 clean steps.
+
 #### [day2#hardware-support] Reduced precision is faster only where the hardware computes in it
 
 *Ask the hardware first*
 
-- PyTorch reports the vector extensions it uses: `torch.backends.cpu.get_cpu_capability()`.
-- The course laptop reports **AVX2**: no native bfloat16 arithmetic.
-- Without it, bfloat16 numbers are converted to float32 to compute and back: extra work.
+- `torch.backends.cpu.get_cpu_capability()` names the vector extensions in use.
+- The course laptop reports **AVX2**: no native bfloat16 arithmetic, so every bfloat16 number is converted to float32 and back.
 
 - **Predict before you run.** Write down faster, same or slower. Then measure.
 
