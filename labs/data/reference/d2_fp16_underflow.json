@@ -1,0 +1,137 @@
+{
+ "model": "hasad_32",
+ "questions": 32,
+ "loss_float32": 0.00041472181328572333,
+ "runs": [
+  {
+   "scale": 1,
+   "loss_float16": 0.0004147755680605769,
+   "lost": 35330,
+   "entries": 1216384,
+   "inf_or_nan": 0,
+   "relative_error": 0.12234283004491225,
+   "groups": {
+    "embeddings": {
+     "entries": 26496,
+     "lost": 2826
+    },
+    "attention": {
+     "entries": 396288,
+     "lost": 7181
+    },
+    "feed-forward": {
+     "entries": 790272,
+     "lost": 25320
+    },
+    "norms": {
+     "entries": 3328,
+     "lost": 3
+    }
+   }
+  },
+  {
+   "scale": 256,
+   "loss_float16": 0.0004147755680605769,
+   "lost": 149,
+   "entries": 1216384,
+   "inf_or_nan": 0,
+   "relative_error": 0.0033647586674401255,
+   "groups": {
+    "embeddings": {
+     "entries": 26496,
+     "lost": 2
+    },
+    "attention": {
+     "entries": 396288,
+     "lost": 34
+    },
+    "feed-forward": {
+     "entries": 790272,
+     "lost": 113
+    },
+    "norms": {
+     "entries": 3328,
+     "lost": 0
+    }
+   }
+  },
+  {
+   "scale": 65536,
+   "loss_float16": 0.0004147755680605769,
+   "lost": 0,
+   "entries": 1216384,
+   "inf_or_nan": 0,
+   "relative_error": 0.0030279482713494715,
+   "groups": {
+    "embeddings": {
+     "entries": 26496,
+     "lost": 0
+    },
+    "attention": {
+     "entries": 396288,
+     "lost": 0
+    },
+    "feed-forward": {
+     "entries": 790272,
+     "lost": 0
+    },
+    "norms": {
+     "entries": 3328,
+     "lost": 0
+    }
+   }
+  },
+  {
+   "scale": 16777216,
+   "loss_float16": 0.0004147755680605769,
+   "lost": 0,
+   "entries": 1216384,
+   "inf_or_nan": 0,
+   "relative_error": 0.003091484180882867,
+   "groups": {
+    "embeddings": {
+     "entries": 26496,
+     "lost": 0
+    },
+    "attention": {
+     "entries": 396288,
+     "lost": 0
+    },
+    "feed-forward": {
+     "entries": 790272,
+     "lost": 0
+    },
+    "norms": {
+     "entries": 3328,
+     "lost": 0
+    }
+   }
+  },
+  {
+   "scale": 4294967296,
+   "loss_float16": 0.0004147755680605769,
+   "lost": 0,
+   "entries": 1216384,
+   "inf_or_nan": 1212488,
+   "relative_error": null,
+   "groups": {
+    "embeddings": {
+     "entries": 26496,
+     "lost": 0
+    },
+    "attention": {
+     "entries": 396288,
+     "lost": 0
+    },
+    "feed-forward": {
+     "entries": 790272,
+     "lost": 0
+    },
+    "norms": {
+     "entries": 3328,
+     "lost": 0
+    }
+   }
+  }
+ ]
+}

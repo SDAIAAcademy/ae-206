@@ -140,7 +140,53 @@ opt.step()                           # float32 master weights</code></pre>
       <li>float16 needs a <b>gradient scaler</b> to keep small gradients from underflowing.</li>
     </ul>
   </div>
-  <aside class="notes"><p>Sources: PyTorch 2.15 documentation, torch.amp: the default autocast type is bfloat16 on CPU and float16 on CUDA. The gradient scaler multiplies the loss before backward and divides before the step.</p></aside>
+  <aside class="notes"><p>Sources: PyTorch 2.15 documentation, torch.amp: the default autocast type is bfloat16 on CPU and float16 on CUDA. The next two slides show what the gradient scaler is for and how to read the signs that a run needs one.</p></aside>
+</section>
+
+<section class="slide" data-label="Underflow" id="fp16-underflow-signs" data-lo="LO4">
+  <div class="kicker">Measured: Hasad, one backward pass on 32 questions it already answers well</div>
+  <h2>float16 lost 2.9% of Hasad's gradients without a single error</h2>
+  <div class="cols cols-2">
+    <table class="t small">
+      <tr><th>Layer group</th><th class="num">Entries</th><th class="num">Zero in float16 only</th></tr>
+      <tr class="hl"><td>Embeddings</td><td class="num">26,496</td><td class="num">10.67%</td></tr>
+      <tr><td>Feed-forward</td><td class="num">790,272</td><td class="num">3.20%</td></tr>
+      <tr><td>Attention</td><td class="num">396,288</td><td class="num">1.81%</td></tr>
+      <tr><td>Norms</td><td class="num">3,328</td><td class="num">0.09%</td></tr>
+      <tr><td><b>All</b></td><td class="num">1,216,384</td><td class="num"><b>2.90%</b></td></tr>
+    </table>
+    <ul class="bullets small">
+      <li>Loss 0.000415 in both runs, no infinity or NaN: <b>not overflow</b>.</li>
+      <li>The same batch in float32 gives every one of these entries a nonzero gradient: <b>not the learning rate</b>.</li>
+      <li>Gradients that are zero only in float16 fell below its smallest number, about 6e-8: <b>underflow</b>.</li>
+    </ul>
+  </div>
+  <aside class="notes"><p>How the numbers were made: labs/_tools/fp16_underflow.py runs one backward pass of the finished Hasad model on 32 farmer questions (loss on the answer only), once in float32 and once with float16 autocast on the same batch, and counts the entries that are nonzero in float32 and exactly zero in float16. The whole gradient differs from float32 by 12.23%. The loss is tiny because Hasad already answers these questions, which is exactly when gradients are small: late in training and on fine-tuning. Embeddings suffer most because most of their rows receive tiny gradients. Ask the room to read the table before the bullets appear: which column rules out overflow, which rules out the learning rate? Lab 2.2's stretch does the same on Waraqa.</p></aside>
+</section>
+
+<section class="slide" data-label="Loss scaling" id="loss-scaling" data-lo="LO4">
+  <div class="kicker">The fix: scale the loss, unscale the gradients</div>
+  <h2>A scale of 65,536 brings the lost gradients back; too large a scale overflows</h2>
+  <div class="cols cols-2">
+    <table class="t small">
+      <tr><th class="num">Loss scale</th><th class="num">Lost</th><th class="num">Inf or NaN</th><th class="num">Error vs float32</th></tr>
+      <tr><td class="num">1</td><td class="num">2.90%</td><td class="num">0</td><td class="num">12.23%</td></tr>
+      <tr><td class="num">256</td><td class="num">0.01%</td><td class="num">0</td><td class="num">0.34%</td></tr>
+      <tr class="hl"><td class="num">65,536</td><td class="num">0.00%</td><td class="num">0</td><td class="num">0.30%</td></tr>
+      <tr><td class="num">16.8 million</td><td class="num">0.00%</td><td class="num">0</td><td class="num">0.31%</td></tr>
+      <tr><td class="num">4.3 billion</td><td class="num">0.00%</td><td class="num">1.2 million</td><td class="num">unusable</td></tr>
+    </table>
+    <pre class="code s" data-file="float16 with a scaler"><code class="language-python">scaler = torch.amp.GradScaler("cuda")
+with torch.autocast("cuda", dtype=torch.float16):
+    loss = loss_fn(model(x), y)
+scaler.scale(loss).backward()   # loss x scale
+scaler.unscale_(opt)            # before clipping
+clip_grad_norm_(model.parameters(), 1.0)
+scaler.step(opt)                # skipped on inf or NaN
+scaler.update()                 # adjust the scale</code></pre>
+  </div>
+  <p class="small mt">PyTorch's scaler starts at 65,536, halves the scale and skips the step when it finds inf or NaN, and doubles it after 2,000 clean steps.</p>
+  <aside class="notes"><p>Same batch and script as the previous slide, now with the loss multiplied by the scale before backward and the gradients divided by it afterwards. The 0.30% error that remains is float16's rounding, not lost entries. The scales are powers of two (2 to the 8, 16, 24 and 32), so multiplying and dividing is exact. At 4.3 billion nearly every gradient overflows: that is why the scaler backs off. Source: PyTorch 2.15, torch.amp.GradScaler (defaults init_scale 65536, growth_factor 2, backoff_factor 0.5, growth_interval 2000) and the AMP examples page (step skipped when gradients hold inf or NaN; unscale_ before clipping). bfloat16 keeps float32's range, so it needs no scaler: that is why Lab 2.2's main runs use none.</p></aside>
 </section>
 
 <section class="slide" data-label="Hardware" id="hardware-support" data-lo="LO4">
@@ -148,9 +194,8 @@ opt.step()                           # float32 master weights</code></pre>
   <h2>Reduced precision is faster only where the hardware computes in it</h2>
   <div class="cols cols-2">
     <ul class="bullets small">
-      <li>PyTorch reports the vector extensions it uses: <code>torch.backends.cpu.get_cpu_capability()</code>.</li>
-      <li>The course laptop reports <b>AVX2</b>: no native bfloat16 arithmetic.</li>
-      <li>Without it, bfloat16 numbers are converted to float32 to compute and back: extra work.</li>
+      <li><code>torch.backends.cpu.get_cpu_capability()</code> names the vector extensions in use.</li>
+      <li>The course laptop reports <b>AVX2</b>: no native bfloat16 arithmetic, so every bfloat16 number is converted to float32 and back.</li>
     </ul>
     <div class="card c-coral"><h4>Predict before you run</h4><p class="small mb0">Write down faster, same or slower. Then measure.</p></div>
   </div>
@@ -181,7 +226,7 @@ opt.step()                           # float32 master weights</code></pre>
     <div class="arrow">→</div>
     <div class="step c-coral"><b>Quality</b>accuracy after, on the same set</div>
   </div>
-  <aside class="notes"><p>This is the frame for every claim this week, including the participants' own in the capstone. Ask: which of the four does the blog post give?</p></aside>
+  <aside class="notes"><p>One minute: the frame for every claim this week, the capstone included. Ask which of the four the blog post gives, and move on.</p></aside>
 </section>
 
 <section class="slide" id="checkpoint-2" data-lo="LO4">
@@ -201,7 +246,7 @@ opt.step()                           # float32 master weights</code></pre>
 </section>
 
 <section class="slide lab" id="lab-2-2" data-auto="lab" data-lab="2.2">
-  <aside class="notes"><p>Both runs start from waraqa_warm.pt (one epoch of training), so they finish in minutes and accuracy has room to move. Usual problems: comparing runs with different seeds or batches; including the first two steps; evaluating the bfloat16 model inside autocast. In Colab with a GPU, the stretch shows float16 with a gradient scaler.</p></aside>
+  <aside class="notes"><p>Both runs start from waraqa_warm.pt (one epoch of training), so they finish in minutes and accuracy has room to move. Usual problems: comparing runs with different seeds or batches; including the first two steps; evaluating the bfloat16 model inside autocast. In Colab with a GPU, the stretch shows float16 with a gradient scaler; a second stretch runs on any machine and asks which loss scale suits Waraqa (debrief it after the lab, not before: it is the Waraqa side of the Hasad table on loss-scaling).</p></aside>
 </section>
 
 <!-- ======================= SESSION 3 ======================= -->

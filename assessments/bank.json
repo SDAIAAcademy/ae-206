@@ -380,6 +380,35 @@
       "weight": 1
     },
     {
+      "id": "q-lo4-fp16-underflow",
+      "type": "single",
+      "prompt": "A fine-tuning run of a small classifier uses float16 autocast on a GPU. The loss is finite and the same as in float32, no gradient is infinite or NaN, and the float32 run of the same batch has no zero gradients. In float16, 7% of the embedding gradients and 2% of all gradients are exactly zero. What should the team change?",
+      "options": [
+        "Lower the learning rate, since gradients this large make float16 training unstable",
+        "Keep the weights and the optimiser state in float16 as well",
+        "Raise the learning rate so that the small updates show again",
+        "Scale the loss before backward and unscale the gradients before the step"
+      ],
+      "correct": [
+        3
+      ],
+      "explanation": "Gradients that are zero only in float16, with no inf or NaN, fell below float16's smallest number: underflow. A gradient scaler moves them into float16's range and divides them back before the step.",
+      "misconceptions": [
+        "Reads underflow as overflow: nothing is infinite and the gradients are too small, not too large",
+        "Moves more of the step into float16, so small updates vanish from the weights too",
+        "A larger learning rate multiplies zero gradients by more and still gives zero",
+        ""
+      ],
+      "lo": [
+        "LO4"
+      ],
+      "day": "day2",
+      "session": 2,
+      "level": "apply",
+      "pool": "practice",
+      "weight": 1
+    },
+    {
       "id": "q-lo4-accumulate",
       "type": "single",
       "prompt": "With gradient accumulation over 4 micro-batches and plain SGD, a participant forgets to divide each loss by 4. What happens?",

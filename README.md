@@ -129,6 +129,7 @@ Each line is a capability; the examples are interchangeable.
 
 - [PyTorch 2.15: datasets and data loaders (torch.utils.data)](https://docs.pytorch.org/docs/2.15/data.html)
 - [PyTorch 2.15: automatic mixed precision (torch.amp)](https://docs.pytorch.org/docs/2.15/amp.html)
+- [PyTorch 2.15: automatic mixed precision examples (gradient scaling)](https://docs.pytorch.org/docs/2.15/notes/amp_examples.html)
 - [PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)](https://docs.pytorch.org/docs/2.15/checkpoint.html)
 - [PyTorch 2.15: torch.compile](https://docs.pytorch.org/docs/2.15/generated/torch.compile.html)
 - [PyTorch 2.15: torch.backends](https://docs.pytorch.org/docs/2.15/backends.html)

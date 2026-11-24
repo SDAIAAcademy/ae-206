@@ -179,11 +179,74 @@ else:
     print("no GPU here: run this cell in a Colab GPU runtime")
 
 # %% [markdown]
+# ## ✱ Stretch · Which loss scale for Waraqa, on any machine
+#
+# float16 autocast also runs on a processor (slowly), which is enough to see what it does to
+# gradients. One backward pass of the finished Waraqa on one batch, in float32 and then in
+# float16 autocast with the loss multiplied by a scale and the gradients divided back. Count the
+# entries that are nonzero in float32 and zero in float16 (lost), the entries that are infinite
+# or NaN, and the relative error of the whole gradient. This takes a few minutes.
+#
+# ✏️ **Exercise** · Return `(lost share, inf or NaN count, relative error)` for one scale.
+# `fp16_grads(scale)` gives the float16 gradient as one flat tensor, `g32` the float32 one.
+
+# %%
+xs, ys = U.to_input(x_tr[:64]), torch.from_numpy(y_tr[:64]).long()   # the same 64 leaves in both modes
+
+
+def flat_grads(dtype=None, scale=1.0):
+    m = U.load_model("waraqa")
+    m.train()
+    with (torch.autocast("cpu", dtype=dtype) if dtype else U._null()):
+        out = m(xs)
+    (torch.nn.functional.cross_entropy(out.float(), ys) * scale).backward()
+    return torch.cat([p.grad.double().flatten() / scale for p in m.parameters()])
+
+
+g32 = flat_grads()
+
+
+def fp16_grads(scale):
+    return flat_grads(torch.float16, scale)
+
+
+def underflow_report(scale):
+    # BEGIN SOLUTION
+    g16 = fp16_grads(scale)
+    nz = g32 != 0
+    lost = float(((g16 == 0) & nz).sum() / nz.sum())
+    bad = int((~torch.isfinite(g16)).sum())
+    err = float((g16 - g32).norm() / g32.norm()) if bad == 0 else float("nan")
+    return lost, bad, err
+    # END SOLUTION
+
+# %%
+try:
+    rows = {s: underflow_report(s) for s in (1, 2 ** 8, 2 ** 16, 2 ** 24)}
+except NotImplementedError:
+    rows = None
+    print("exercise not done yet: the stretch stops here")
+if rows:
+    print(f"{'scale':>10s} {'lost %':>8s} {'inf/NaN':>8s} {'error %':>8s}")
+    for s, (lost, bad, err) in rows.items():
+        print(f"{s:10d} {100 * lost:8.3f} {bad:8d} {100 * err:8.2f}")
+    assert rows[1][1] == 0 and rows[2 ** 16][1] == 0, "no overflow expected at scales 1 and 65,536"
+    assert rows[2 ** 16][2] < rows[1][2], "scaling should bring the gradient closer to float32"
+    assert rows[2 ** 24][1] > 0, "a scale of 2**24 should overflow Waraqa's largest gradients"
+
+# %% [markdown]
+# **Look at** the table. Which scales are safe for Waraqa, and why does Waraqa overflow at a
+# smaller scale than a model whose gradients are tiny? Write the scale you would start a
+# gradient scaler at.
+
+# %% [markdown]
 # ## Check yourself
 #
 # 1. bfloat16 and float16 both use 16 bits. What does each give up?
 # 2. Why are the weights kept in float32 during mixed-precision training?
 # 3. bfloat16 was slower on your laptop. Is mixed precision then useless for Nama?
+# 4. Stretch: a float16 run shows a finite loss, no inf or NaN, and gradients that are zero only
+#    in float16. What is wrong, and what is the fix?
 #
 # <details><summary>Answers</summary>
 #
@@ -194,6 +257,10 @@ else:
 # 3. No: it halves the bytes of every activation it touches, and on hardware with native
 #    support it is faster. On this laptop it buys nothing for speed; that is a measurement, not
 #    a rule.
+# 4. Underflow: those gradients fell below float16's smallest number. Scale the loss before
+#    backward and divide the gradients before the step, at a scale that brings the error down
+#    without any inf or NaN. In this course's run, Waraqa was safe at 256 and 65,536 and
+#    overflowed at 2**24, because its largest gradients are much larger than Hasad's.
 # </details>
 #
 # ## Carry forward

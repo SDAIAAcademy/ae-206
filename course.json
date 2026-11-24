@@ -3,7 +3,7 @@
   "engine": "1",
   "id": "ae-206",
   "code": "AE-206",
-  "version": "2027.1.0",
+  "version": "2027.2.0",
   "lang": "en",
   "title": {
     "en": "Machine Learning Systems on One Machine",
@@ -354,7 +354,7 @@
             ],
             "stretch": "On a Colab GPU, float16 autocast with a gradient scaler"
           },
-          "summary": "Number formats, autocast and what the hardware actually accelerates"
+          "summary": "Number formats, autocast, float16 underflow and loss scaling, and what the hardware actually accelerates"
         },
         {
           "title": "Accumulation and checkpointing",
@@ -951,6 +951,10 @@
         {
           "title": "PyTorch 2.15: automatic mixed precision (torch.amp)",
           "url": "https://docs.pytorch.org/docs/2.15/amp.html"
+        },
+        {
+          "title": "PyTorch 2.15: automatic mixed precision examples (gradient scaling)",
+          "url": "https://docs.pytorch.org/docs/2.15/notes/amp_examples.html"
         },
         {
           "title": "PyTorch 2.15: activation checkpointing (torch.utils.checkpoint)",
